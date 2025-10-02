@@ -8,12 +8,12 @@ import PurchaseModal from './common/PurchaseModal';
 import { useAuth } from '../hooks/useAuth';
 
 interface StoreProps {
-  setActivePage: (page: Page) => void;
+  navigateTo: (page: Page) => void;
   balances: Balances;
   setBalances: React.Dispatch<React.SetStateAction<Balances>>;
 }
 
-const Store: React.FC<StoreProps> = ({ setActivePage, balances, setBalances }) => {
+const Store: React.FC<StoreProps> = ({ navigateTo, balances, setBalances }) => {
     const { user } = useAuth();
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
     const [modalState, setModalState] = useState<'hidden' | 'confirm' | 'insufficient_funds'>('hidden');
@@ -66,13 +66,13 @@ const Store: React.FC<StoreProps> = ({ setActivePage, balances, setBalances }) =
         // 4. Close modal and navigate
         setModalState('hidden');
         setSelectedPlan(null);
-        setActivePage(Page.Dashboard);
+        navigateTo(Page.Dashboard);
     };
 
     const handleGoToWallet = () => {
         setModalState('hidden');
         setSelectedPlan(null);
-        setActivePage(Page.Wallet);
+        navigateTo(Page.Wallet);
     };
 
     return (

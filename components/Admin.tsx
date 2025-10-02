@@ -1,356 +1,215 @@
 import React, { useState, useEffect } from 'react';
 import Card from './common/Card';
-import Input from './common/Input';
 import Button from './common/Button';
-import Toggle from './common/Toggle';
-import { User, Theme, Transaction, TransactionType, TransactionStatus, Balances, KycStatus, SystemAlert, WorkerNode } from '../types';
-import { TrashIcon, PlusIcon, ExclamationTriangleIcon, ServerIcon, ChartPieIcon, CodeBracketIcon, DocumentTextIcon, CloudIcon, CircleStackIcon, ArchiveBoxIcon, BoltIcon } from './common/Icons';
-import MetricChart from './common/MetricChart';
-import LiveLogViewer from './common/LiveLogViewer';
+import { User, Transaction, TransactionType, TransactionStatus, Balances, KycStatus } from '../types';
 
+// In a real app, this would be fetched from a secure backend.
+const USERS_KEY = 'minerx_users';
 
-const MOCK_ALERTS: SystemAlert[] = [
-    { id: 'alert1', severity: 'Critical', message: 'Payout Worker #3 is unresponsive. No payouts processed in 15 mins.', timestamp: '2 mins ago' },
-    { id: 'alert2', severity: 'Warning', message: 'High rate of failed withdrawal attempts from IP 123.45.67.89.', timestamp: '28 mins ago' },
-];
-
-const MOCK_WORKERS: WorkerNode[] = [
-    { id: 'worker1', name: 'Payout Worker #1', status: 'Healthy', ip: '192.168.1.101' },
-    { id: 'worker2', name: 'Share Aggregator #1', status: 'Healthy', ip: '192.168.1.102' },
-    { id: 'worker3', name: 'Payout Worker #2', status: 'Degraded', ip: '192.168.1.103' },
-    { id: 'worker4', name: 'Stratum Gateway #1', status: 'Healthy', ip: '192.168.1.104' },
-    { id: 'worker5', name: 'Payout Worker #3', status: 'Unresponsive', ip: '192.168.1.105' },
-];
-
-const MOCK_DEPLOYMENTS = [
-    { id: 'dep1', commit: 'a1b2c3d', message: 'fix: resolved payout calculation bug', status: 'Deployed', timestamp: '2 hours ago' },
-    { id: 'dep2', commit: 'e4f5g6h', message: 'feat: added new ETH mining plan', status: 'Deployed', timestamp: '1 day ago' },
-    { id: 'dep3', commit: 'i7j8k9l', message: 'refactor: optimized database queries', status: 'Deployed', timestamp: '2 days ago' },
-];
-
-const MOCK_INFRA_STATUS = [
-    { name: 'Container Registry', status: 'Online', icon: <CodeBracketIcon className="w-5 h-5 text-primary" /> },
-    { name: 'Kubernetes Cluster (GKE)', status: 'Healthy', icon: <CloudIcon className="w-5 h-5 text-primary" /> },
-    { name: 'PostgreSQL Database', status: 'Connected', icon: <CircleStackIcon className="w-5 h-5 text-primary" /> },
-    { name: 'Redis Cache', status: 'Connected', icon: <BoltIcon className="w-5 h-5 text-primary" /> },
-    { name: 'Automated Backups', status: 'Active (Daily)', icon: <ArchiveBoxIcon className="w-5 h-5 text-primary" /> },
-];
-
-
-interface AdminProps {
-    user: User;
-    setUser: (user: User) => void;
-    balances: Balances;
-    setBalances: React.Dispatch<React.SetStateAction<Balances>>;
+interface AugmentedTransaction extends Transaction {
+  userId: string;
+  userEmail: string;
 }
 
-const Admin: React.FC<AdminProps> = ({ user: initialUser, setUser: setGlobalUser, balances: initialBalances, setBalances: setGlobalBalances }) => {
-    const [user, setUser] = useState<User>(initialUser);
-    const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('minerx_theme') as Theme) || Theme.Dark);
-    const [localBalances, setLocalBalances] = useState<Balances>(initialBalances);
-    const [hashrate, setHashrate] = useState<number>(() => parseFloat(localStorage.getItem('minerx_hashrate') || '0'));
-    const [transactions, setTransactions] = useState<Transaction[]>(() => JSON.parse(localStorage.getItem('minerx_transactions') || '[]'));
-    
-    const pendingTransactions = transactions.filter(tx => tx.status === TransactionStatus.Pending);
+const TransactionApprovalCard: React.FC<{ 
+    tx: AugmentedTransaction, 
+    onAction: (tx: AugmentedTransaction, action: 'approve' | 'reject') => void 
+}> = ({ tx, onAction }) => (
+    <div className="bg-secondary/80 p-3 rounded-lg">
+        <div className="flex justify-between items-center">
+            <div>
+                <p className="font-bold text-text-dark">{tx.type} Request</p>
+                <p className="text-sm text-text-muted-dark">{tx.userEmail}</p>
+            </div>
+            <p className={`font-bold text-lg ${tx.type === 'Deposit' ? 'text-success' : 'text-danger'}`}>
+                {tx.type === 'Deposit' ? '+' : '-'}{tx.amount.toFixed(4)} {tx.currency}
+            </p>
+        </div>
+        <div className="flex justify-end space-x-2 mt-3">
+           <Button onClick={() => onAction(tx, 'approve')} className="!px-4 !py-1.5 !text-xs !bg-success !text-black">Approve</Button>
+           <Button onClick={() => onAction(tx, 'reject')} className="!px-4 !py-1.5 !text-xs !bg-danger">Reject</Button>
+        </div>
+    </div>
+);
+
+
+const Admin: React.FC = () => {
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [pendingDeposits, setPendingDeposits] = useState<AugmentedTransaction[]>([]);
+    const [pendingWithdrawals, setPendingWithdrawals] = useState<AugmentedTransaction[]>([]);
+    const [activeTab, setActiveTab] = useState<'deposits' | 'withdrawals' | 'users'>('deposits');
+    const [isLoading, setIsLoading] = useState(true);
+
+    const loadData = () => {
+        setIsLoading(true);
+        const usersJson = localStorage.getItem(USERS_KEY);
+        const users: User[] = usersJson ? JSON.parse(usersJson) : [];
+        setAllUsers(users.filter(u => u.email !== 'admin'));
+
+        const allPendingDeposits: AugmentedTransaction[] = [];
+        const allPendingWithdrawals: AugmentedTransaction[] = [];
+        
+        users.forEach(user => {
+            const txsJson = localStorage.getItem(`minerx_transactions_${user.id}`);
+            const userTxs: Transaction[] = txsJson ? JSON.parse(txsJson) : [];
+            
+            userTxs.forEach(tx => {
+                if (tx.status === TransactionStatus.Pending) {
+                    const augmentedTx = { ...tx, userId: user.id, userEmail: user.email };
+                    if (tx.type === TransactionType.Deposit) {
+                        allPendingDeposits.push(augmentedTx);
+                    } else if (tx.type === TransactionType.Withdrawal) {
+                        allPendingWithdrawals.push(augmentedTx);
+                    }
+                }
+            });
+        });
+        
+        setPendingDeposits(allPendingDeposits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setPendingWithdrawals(allPendingWithdrawals.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setIsLoading(false);
+    };
 
     useEffect(() => {
-        setLocalBalances(initialBalances);
-    }, [initialBalances]);
-
-     useEffect(() => {
-        setUser(initialUser);
-    }, [initialUser]);
-
-    useEffect(() => {
-        const handleTxsUpdate = () => setTransactions(JSON.parse(localStorage.getItem('minerx_transactions') || '[]'));
-        window.addEventListener('transactions_updated', handleTxsUpdate);
-        return () => window.removeEventListener('transactions_updated', handleTxsUpdate);
+        loadData();
     }, []);
 
-    const dispatchUpdate = (eventName: string, detail: any) => {
-        window.dispatchEvent(new CustomEvent(eventName, { detail }));
-    };
+    const handleTransactionAction = (txToUpdate: AugmentedTransaction, action: 'approve' | 'reject') => {
+        const { id: txId, userId } = txToUpdate;
+        
+        const TX_KEY = `minerx_transactions_${userId}`;
+        const txsJson = localStorage.getItem(TX_KEY);
+        const transactions: Transaction[] = txsJson ? JSON.parse(txsJson) : [];
+        const txIndex = transactions.findIndex(t => t.id === txId);
 
-    const handleTransactionAction = (txId: string, action: 'approve' | 'reject') => {
-        const currentTxs: Transaction[] = JSON.parse(localStorage.getItem('minerx_transactions') || '[]');
-        const txIndex = currentTxs.findIndex(t => t.id === txId);
         if (txIndex === -1) return;
 
-        const tx = currentTxs[txIndex];
         const newStatus = action === 'approve' ? TransactionStatus.Completed : TransactionStatus.Failed;
-        
-        currentTxs[txIndex].status = newStatus;
+        transactions[txIndex].status = newStatus;
+        localStorage.setItem(TX_KEY, JSON.stringify(transactions));
 
-        const currentBalances: Balances = JSON.parse(localStorage.getItem('minerx_balances') || '{}');
+        const tx = transactions[txIndex];
         let balancesUpdated = false;
+        
+        const BAL_KEY = `minerx_balances_${userId}`;
+        const balJson = localStorage.getItem(BAL_KEY);
+        const balances: Balances = balJson ? JSON.parse(balJson) : { btc: 0, eth: 0, usdt: 0 };
+        const currencyKey = tx.currency.toLowerCase() as keyof Balances;
 
         if (tx.type === TransactionType.Deposit && action === 'approve') {
-            const currencyKey = tx.currency.toLowerCase() as keyof Balances;
-            currentBalances[currencyKey] = (currentBalances[currencyKey] || 0) + tx.amount;
+            balances[currencyKey] = (balances[currencyKey] || 0) + tx.amount;
             balancesUpdated = true;
-        } else if (tx.type === TransactionType.Withdrawal && action === 'reject') {
-            const currencyKey = tx.currency.toLowerCase() as keyof Balances;
-            currentBalances[currencyKey] = (currentBalances[currencyKey] || 0) + tx.amount;
+        } 
+        else if (tx.type === TransactionType.Withdrawal && action === 'reject') {
+            balances[currencyKey] = (balances[currencyKey] || 0) + tx.amount;
             balancesUpdated = true;
         }
-        
-        localStorage.setItem('minerx_transactions', JSON.stringify(currentTxs));
-        dispatchUpdate('transactions_updated', null);
         
         if (balancesUpdated) {
-            localStorage.setItem('minerx_balances', JSON.stringify(currentBalances));
-            setGlobalBalances(currentBalances);
+            localStorage.setItem(BAL_KEY, JSON.stringify(balances));
+            window.dispatchEvent(new Event('balances_updated'));
         }
+
+        loadData();
+        window.dispatchEvent(new Event('transactions_updated'));
     };
 
-
-    const handleUserSave = () => {
-        setGlobalUser(user);
-    };
-
-    const handleThemeChange = (isDark: boolean) => {
-        const newTheme = isDark ? Theme.Dark : Theme.Light;
-        setTheme(newTheme);
-        localStorage.setItem('minerx_theme', newTheme);
-        dispatchUpdate('admin_theme_update', newTheme);
-    };
-    
-    const handleMiningControl = (action: 'start' | 'stop' | 'set_hashrate', value?: number) => {
-        if (action === 'set_hashrate' && typeof value === 'number') {
-            localStorage.setItem('minerx_hashrate', value.toString());
-        }
-        dispatchUpdate('admin_mining_control', { action, value });
-    };
-
-    const handleBalanceSet = () => {
-        setGlobalBalances(localBalances);
-    };
-    
-    const deleteTransaction = (id: string) => {
-        const updatedTxs = transactions.filter(tx => tx.id !== id);
-        localStorage.setItem('minerx_transactions', JSON.stringify(updatedTxs));
-        dispatchUpdate('transactions_updated', null);
-    };
-    
-    const addTransaction = () => {
-        const newTx: Transaction = {
-            id: `tx_admin_${Date.now()}`,
-            type: TransactionType.Deposit,
-            status: TransactionStatus.Completed,
-            amount: 1.0,
-            currency: 'BTC',
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-            address: 'admin_generated',
+    const KycStatusBadge: React.FC<{ status: KycStatus }> = ({ status }) => {
+        const styles = {
+            [KycStatus.Verified]: 'bg-success/20 text-success',
+            [KycStatus.Pending]: 'bg-warning/20 text-warning',
+            [KycStatus.NotVerified]: 'bg-secondary text-text-muted-dark',
+            [KycStatus.Rejected]: 'bg-danger/20 text-danger',
         };
-        const updatedTxs = [newTx, ...transactions];
-        localStorage.setItem('minerx_transactions', JSON.stringify(updatedTxs));
-        dispatchUpdate('transactions_updated', null);
+        return <span className={`px-3 py-1 text-xs font-semibold rounded-full ${styles[status]}`}>{status}</span>
     };
-    
-    const StatusIndicator: React.FC<{ status: WorkerNode['status'] | 'Online' | 'Connected' | 'Active (Daily)'}> = ({ status }) => {
-        const config = {
-            Healthy: { color: 'bg-success', text: 'Healthy' },
-            Online: { color: 'bg-success', text: 'Online' },
-            'Active (Daily)': { color: 'bg-success', text: 'Active' },
-            Connected: { color: 'bg-success', text: 'Connected' },
-            Degraded: { color: 'bg-warning', text: 'Degraded' },
-            Unresponsive: { color: 'bg-danger', text: 'Unresponsive' },
-        }[status];
-        return (
-            <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${config.color} animate-pulse`}></div>
-                <span className="font-semibold text-text-dark">{config.text}</span>
-            </div>
-        );
-    };
-
 
     return (
         <div className="p-5 space-y-6 pb-24">
-            <h1 className="text-4xl font-extrabold text-text-dark">Admin Panel</h1>
+            <h1 className="text-4xl font-extrabold text-text-dark">Admin Dashboard</h1>
+
+            <div className="flex bg-secondary rounded-2xl p-1">
+                <button
+                    onClick={() => setActiveTab('deposits')}
+                    className={`w-1/3 py-2.5 rounded-xl font-bold text-base transition-all duration-300 relative ${activeTab === 'deposits' ? 'bg-card-dark text-primary shadow-md' : 'text-text-muted-dark'}`}
+                >
+                    Deposits
+                    {pendingDeposits.length > 0 && 
+                        <span className="absolute top-1 right-2 h-5 w-5 bg-danger text-white text-xs font-bold rounded-full flex items-center justify-center">
+                            {pendingDeposits.length}
+                        </span>
+                    }
+                </button>
+                <button
+                    onClick={() => setActiveTab('withdrawals')}
+                    className={`w-1/3 py-2.5 rounded-xl font-bold text-base transition-all duration-300 relative ${activeTab === 'withdrawals' ? 'bg-card-dark text-primary shadow-md' : 'text-text-muted-dark'}`}
+                >
+                    Withdrawals
+                     {pendingWithdrawals.length > 0 && 
+                        <span className="absolute top-1 right-2 h-5 w-5 bg-danger text-white text-xs font-bold rounded-full flex items-center justify-center">
+                            {pendingWithdrawals.length}
+                        </span>
+                    }
+                </button>
+                <button
+                    onClick={() => setActiveTab('users')}
+                    className={`w-1/3 py-2.5 rounded-xl font-bold text-base transition-all duration-300 ${activeTab === 'users' ? 'bg-card-dark text-primary shadow-md' : 'text-text-muted-dark'}`}
+                >
+                    Users
+                </button>
+            </div>
             
-            {pendingTransactions.length > 0 && (
-                <Card className="!border-warning !border-2">
-                    <h2 className="font-bold text-xl mb-4 text-warning">Pending Actions ({pendingTransactions.length})</h2>
-                    <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                        {pendingTransactions.map(tx => (
-                            <div key={tx.id} className="flex justify-between items-center bg-secondary/80 p-3 rounded-lg">
-                               <div>
-                                    <p className="font-semibold text-text-dark">{tx.type} - {tx.amount} {tx.currency}</p>
-                                    <p className="text-xs text-text-muted-dark">{tx.date}</p>
-                               </div>
-                               <div className="flex space-x-2">
-                                   <Button onClick={() => handleTransactionAction(tx.id, 'approve')} className="!px-3 !py-2 !text-xs !bg-success !text-black">Approve</Button>
-                                   <Button onClick={() => handleTransactionAction(tx.id, 'reject')} className="!px-3 !py-2 !text-xs !bg-danger">Reject</Button>
-                               </div>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-            )}
-
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">System Monitoring & Ops</h2>
-                
-                <div className="space-y-6">
-                    {/* Metrics */}
-                    <div className="bg-secondary/50 p-4 rounded-xl">
-                        <h3 className="font-semibold text-lg text-text-dark mb-3 flex items-center"><ChartPieIcon className="w-5 h-5 mr-2 text-primary" />Metrics Overview</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                           <MetricChart title="API Latency (p95)" unit="ms" color="#00E5FF" />
-                           <MetricChart title="DB Queries/sec" unit="qps" color="#00FF85" />
-                        </div>
-                        <div className="mt-4 p-3 bg-background-dark/50 rounded-lg flex justify-between items-center">
-                            <span className="text-text-muted-dark font-medium">Pool Connection:</span>
-                            <StatusIndicator status="Connected" />
-                        </div>
-                    </div>
-
-                    {/* Worker Status */}
-                    <div className="bg-secondary/50 p-4 rounded-xl">
-                        <h3 className="font-semibold text-lg text-text-dark mb-3 flex items-center"><ServerIcon className="w-5 h-5 mr-2 text-primary" />Worker Status</h3>
-                        <div className="space-y-2">
-                            {MOCK_WORKERS.map(worker => (
-                                <div key={worker.id} className="flex justify-between items-center bg-background-dark/50 p-2 rounded-lg text-sm">
-                                    <div>
-                                        <p className="font-medium text-text-dark">{worker.name}</p>
-                                        <p className="text-xs text-text-muted-dark font-mono">{worker.ip}</p>
-                                    </div>
-                                    <StatusIndicator status={worker.status} />
+            {isLoading ? <div className="text-center p-10 text-primary">Loading Data...</div> : (
+                <>
+                    {activeTab === 'deposits' && (
+                        <Card>
+                            <h2 className="font-bold text-xl mb-4 text-text-dark">Pending Deposits</h2>
+                            {pendingDeposits.length > 0 ? (
+                                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                                    {pendingDeposits.map(tx => (
+                                        <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                            ) : (
+                                <p className="text-text-muted-dark text-center py-8">No pending deposits.</p>
+                            )}
+                        </Card>
+                    )}
                     
-                    {/* Active Alerts */}
-                    <div className="bg-secondary/50 p-4 rounded-xl">
-                        <h3 className="font-semibold text-lg text-text-dark mb-3 flex items-center"><ExclamationTriangleIcon className="w-5 h-5 mr-2 text-danger" />Active Alerts</h3>
-                        <div className="space-y-2">
-                            {MOCK_ALERTS.map(alert => (
-                                <div key={alert.id} className={`p-3 rounded-lg border-l-4 ${alert.severity === 'Critical' ? 'bg-danger/10 border-danger' : 'bg-warning/10 border-warning'}`}>
-                                    <p className="font-bold text-text-dark">{alert.severity}: <span className="font-normal">{alert.message}</span></p>
-                                    <p className="text-xs text-text-muted-dark mt-1">{alert.timestamp}</p>
+                    {activeTab === 'withdrawals' && (
+                        <Card>
+                            <h2 className="font-bold text-xl mb-4 text-text-dark">Pending Withdrawals</h2>
+                            {pendingWithdrawals.length > 0 ? (
+                                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                                    {pendingWithdrawals.map(tx => (
+                                        <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                    
-                    {/* Live Logs */}
-                    <LiveLogViewer />
+                            ) : (
+                                <p className="text-text-muted-dark text-center py-8">No pending withdrawals.</p>
+                            )}
+                        </Card>
+                    )}
 
-                    {/* Deployments & Ops */}
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-secondary/50 p-4 rounded-xl">
-                             <h3 className="font-semibold text-text-dark mb-3 flex items-center"><CodeBracketIcon className="w-5 h-5 mr-2 text-primary" />Recent Deploys</h3>
-                             <div className="space-y-2 text-sm">
-                                {MOCK_DEPLOYMENTS.slice(0, 2).map(d => (
-                                    <div key={d.id} className="p-2 bg-background-dark/50 rounded-lg">
-                                        <p className="font-mono text-primary text-xs">{d.commit}</p>
-                                        <p className="text-text-dark truncate">{d.message}</p>
-                                        <p className="text-xs text-text-muted-dark">{d.timestamp}</p>
+                    {activeTab === 'users' && (
+                        <Card>
+                            <h2 className="font-bold text-xl mb-4 text-text-dark">User Management ({allUsers.length})</h2>
+                             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                                {allUsers.map(user => (
+                                    <div key={user.id} className="flex items-center space-x-4 bg-secondary/80 p-3 rounded-lg">
+                                        <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full object-cover" />
+                                        <div className="flex-1">
+                                            <p className="font-bold text-text-dark">{user.username}</p>
+                                            <p className="text-sm text-text-muted-dark">{user.email}</p>
+                                        </div>
+                                        <KycStatusBadge status={user.kycStatus} />
                                     </div>
                                 ))}
                              </div>
-                        </div>
-                         <div className="bg-secondary/50 p-4 rounded-xl flex flex-col justify-between">
-                             <h3 className="font-semibold text-text-dark mb-3 flex items-center"><DocumentTextIcon className="w-5 h-5 mr-2 text-primary" />Operations</h3>
-                             <p className="text-sm text-text-muted-dark flex-grow">Access internal documentation for incident response.</p>
-                             <Button variant="ghost" onClick={() => alert('Runbooks are maintained in the internal Confluence space.')}>View Runbooks</Button>
-                        </div>
-                    </div>
-                </div>
-            </Card>
-
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">User Management</h2>
-                <div className="space-y-4">
-                    <Input label="Username" value={user.username} onChange={e => setUser({...user, username: e.target.value})} />
-                    <Input label="Email" value={user.email} onChange={e => setUser({...user, email: e.target.value})} />
-                    <Input label="Avatar URL" value={user.avatar} onChange={e => setUser({...user, avatar: e.target.value})} />
-                    <div>
-                        <label className="block text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-2 ml-1">KYC Status</label>
-                        <select
-                            value={user.kycStatus}
-                            onChange={e => setUser({...user, kycStatus: e.target.value as KycStatus})}
-                            className="w-full bg-background-light dark:bg-white/5 border-2 border-border-light dark:border-border-dark rounded-2xl py-3.5 px-4 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
-                        >
-                            {Object.values(KycStatus).map(status => (
-                                <option key={status} value={status}>{status}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-                <Button onClick={handleUserSave} className="w-full mt-6">Save User</Button>
-            </Card>
-            
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">Mining Control</h2>
-                <div className="grid grid-cols-2 gap-4">
-                     <Button onClick={() => handleMiningControl('start')} variant="secondary">Start Mining</Button>
-                     <Button onClick={() => handleMiningControl('stop')} variant="danger">Stop Mining</Button>
-                </div>
-                <div className="flex items-end space-x-2 mt-4">
-                     <Input label="Set Hashrate (GH/s)" type="number" value={hashrate} onChange={e => setHashrate(parseFloat(e.target.value))} />
-                     <Button onClick={() => handleMiningControl('set_hashrate', hashrate)} variant="secondary">Set</Button>
-                </div>
-            </Card>
-
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">Wallet Control</h2>
-                <div className="space-y-4">
-                    <Input label="Set BTC Balance" type="number" value={localBalances.btc} onChange={e => setLocalBalances({...localBalances, btc: parseFloat(e.target.value) || 0})} />
-                    <Input label="Set ETH Balance" type="number" value={localBalances.eth} onChange={e => setLocalBalances({...localBalances, eth: parseFloat(e.target.value) || 0})} />
-                    <Input label="Set USDT Balance" type="number" value={localBalances.usdt} onChange={e => setLocalBalances({...localBalances, usdt: parseFloat(e.target.value) || 0})} />
-                </div>
-                 <Button onClick={handleBalanceSet} variant="secondary" className="w-full mt-6">Set Balances</Button>
-            </Card>
-            
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">Deployment & Infrastructure</h2>
-                <div className="space-y-3">
-                    {MOCK_INFRA_STATUS.map(item => (
-                        <div key={item.name} className="flex justify-between items-center bg-secondary/50 p-3 rounded-lg">
-                            <div className="flex items-center space-x-3">
-                                {item.icon}
-                                <p className="font-semibold text-text-dark">{item.name}</p>
-                            </div>
-                           <StatusIndicator status={item.status as any} />
-                        </div>
-                    ))}
-                </div>
-                <p className="text-xs text-text-muted-dark mt-4 text-center">
-                    All services are containerized via Docker and deployed on a managed Kubernetes cluster.
-                </p>
-            </Card>
-
-            <Card>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="font-bold text-xl text-text-dark">Transaction History</h2>
-                    <Button onClick={addTransaction} variant="ghost" icon={<PlusIcon className="w-5 h-5"/>}>Add</Button>
-                </div>
-                <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-                    {transactions.map(tx => (
-                        <div key={tx.id} className="flex justify-between items-center bg-secondary/80 p-3 rounded-lg">
-                           <div>
-                                <p className="font-semibold text-text-dark">{tx.type} - {tx.amount} {tx.currency}</p>
-                                <p className="text-xs text-text-muted-dark">{tx.id}</p>
-                           </div>
-                           <button onClick={() => deleteTransaction(tx.id)} className="p-2 text-danger/70 hover:text-danger hover:bg-danger/10 rounded-full transition-colors">
-                               <TrashIcon className="w-5 h-5" />
-                           </button>
-                        </div>
-                    ))}
-                </div>
-            </Card>
-
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">App Settings</h2>
-                <div className="flex justify-between items-center">
-                    <span className="font-medium text-lg text-text-dark">Dark Mode</span>
-                    <Toggle label="Theme" enabled={theme === Theme.Dark} onChange={handleThemeChange} />
-                </div>
-            </Card>
-
+                        </Card>
+                    )}
+                </>
+            )}
         </div>
     );
 };

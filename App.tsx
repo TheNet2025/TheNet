@@ -16,12 +16,40 @@ import { useWalletBalance } from './hooks/useWalletBalance';
 import { useAuth } from './hooks/useAuth';
 
 const MainApp: React.FC = () => {
-    const { user, isUserAdmin, setUser } = useAuth();
+    const { user, isUserAdmin, setUser, isAuthenticated } = useAuth();
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('minerx_theme') as Theme) || Theme.Dark);
     const [activePage, setActivePage] = useState<Page>(Page.Dashboard);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
     const { balances, setBalances, rates, totalUsdValue } = useWalletBalance();
+
+    const navigateTo = (page: Page) => {
+        const path = page === Page.Admin ? '/admin' : '/';
+        if (window.location.pathname !== path) {
+            window.history.pushState({ page }, '', path);
+        }
+        setActivePage(page);
+    };
+
+    // Handle initial routing and browser navigation (back/forward)
+    useEffect(() => {
+        const handleLocationChange = () => {
+            if (!isAuthenticated) return;
+            const path = window.location.pathname;
+            if (path === '/admin' && isUserAdmin) {
+                setActivePage(Page.Admin);
+            } else if (path === '/admin' && !isUserAdmin) {
+                // Non-admin trying to access /admin, redirect them
+                window.history.replaceState({ page: Page.Dashboard }, '', '/');
+                setActivePage(Page.Dashboard);
+            } else {
+                setActivePage(Page.Dashboard); // Default to dashboard
+            }
+        };
+        handleLocationChange(); // Initial check
+        window.addEventListener('popstate', handleLocationChange);
+        return () => window.removeEventListener('popstate', handleLocationChange);
+    }, [isUserAdmin, isAuthenticated]);
 
     useEffect(() => {
         document.documentElement.className = theme;
@@ -58,28 +86,30 @@ const MainApp: React.FC = () => {
     }, [user]);
     
      useEffect(() => {
-        if(isUserAdmin) setActivePage(Page.Admin)
+        if(isUserAdmin && window.location.pathname === '/admin') {
+            setActivePage(Page.Admin);
+        }
     }, [isUserAdmin]);
 
     const renderPage = () => {
         if (!user) return null;
         switch (activePage) {
             case Page.Dashboard:
-                return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} setActivePage={setActivePage} />;
+                return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
             case Page.Wallet:
                 return <Wallet balances={balances} setBalances={setBalances} rates={rates} />;
             case Page.Chat:
                 return <Chat />;
             case Page.Store:
-                return <Store setActivePage={setActivePage} balances={balances} setBalances={setBalances} />;
+                return <Store navigateTo={navigateTo} balances={balances} setBalances={setBalances} />;
             case Page.History:
                 return <History transactions={transactions} onSelectTx={setSelectedTx} />;
             case Page.Settings:
                 return <Settings user={user} setUser={setUser} theme={theme} setTheme={setTheme} />;
             case Page.Admin:
-                return isUserAdmin ? <Admin user={user} setUser={setUser} balances={balances} setBalances={setBalances} /> : <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} setActivePage={setActivePage} />;
+                return isUserAdmin ? <Admin /> : <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
             default:
-                return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} setActivePage={setActivePage} />;
+                return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
         }
     };
     
@@ -90,7 +120,7 @@ const MainApp: React.FC = () => {
                 <main className="pt-10 flex-1 overflow-y-auto pb-20 scrollbar-hide">
                     {renderPage()}
                 </main>
-                <BottomNav activePage={activePage} setActivePage={setActivePage} isAdmin={isUserAdmin} />
+                <BottomNav activePage={activePage} navigateTo={navigateTo} isAdmin={isUserAdmin} />
                 {selectedTx && <TransactionDetailModal tx={selectedTx} onClose={() => setSelectedTx(null)} />}
             </div>
         </div>

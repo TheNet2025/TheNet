@@ -4,7 +4,7 @@ import { Page } from '../types';
 
 interface BottomNavProps {
   activePage: Page;
-  setActivePage: (page: Page) => void;
+  navigateTo: (page: Page) => void;
   isAdmin: boolean;
 }
 
@@ -16,17 +16,17 @@ const NavItem: React.FC<{label: string, icon: React.ReactNode, isActive: boolean
     </button>
 )
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activePage, setActivePage, isAdmin }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ activePage, navigateTo, isAdmin }) => {
     return (
         <div className="absolute bottom-0 left-0 right-0 h-20 bg-card-light/80 dark:bg-secondary/50 backdrop-blur-lg shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_-5px_rgba(0,0,0,0.3)] flex justify-around items-start px-2 rounded-t-[32px] border-t border-white/10">
-            <NavItem label="Dashboard" icon={<HomeIcon />} isActive={activePage === Page.Dashboard} onClick={() => setActivePage(Page.Dashboard)} />
-            <NavItem label="Wallet" icon={<WalletIcon />} isActive={activePage === Page.Wallet} onClick={() => setActivePage(Page.Wallet)} />
-            <NavItem label="Chat" icon={<ChatBubbleLeftRightIcon />} isActive={activePage === Page.Chat} onClick={() => setActivePage(Page.Chat)} />
-            <NavItem label="Store" icon={<BoltIcon />} isActive={activePage === Page.Store} onClick={() => setActivePage(Page.Store)} />
-            <NavItem label="History" icon={<HistoryIcon />} isActive={activePage === Page.History} onClick={() => setActivePage(Page.History)} />
-            <NavItem label="Settings" icon={<SettingsIcon />} isActive={activePage === Page.Settings} onClick={() => setActivePage(Page.Settings)} />
+            <NavItem label="Dashboard" icon={<HomeIcon />} isActive={activePage === Page.Dashboard} onClick={() => navigateTo(Page.Dashboard)} />
+            <NavItem label="Wallet" icon={<WalletIcon />} isActive={activePage === Page.Wallet} onClick={() => navigateTo(Page.Wallet)} />
+            <NavItem label="Chat" icon={<ChatBubbleLeftRightIcon />} isActive={activePage === Page.Chat} onClick={() => navigateTo(Page.Chat)} />
+            <NavItem label="Store" icon={<BoltIcon />} isActive={activePage === Page.Store} onClick={() => navigateTo(Page.Store)} />
+            <NavItem label="History" icon={<HistoryIcon />} isActive={activePage === Page.History} onClick={() => navigateTo(Page.History)} />
+            <NavItem label="Settings" icon={<SettingsIcon />} isActive={activePage === Page.Settings} onClick={() => navigateTo(Page.Settings)} />
             {isAdmin && (
-                <NavItem label="Admin" icon={<AdjustmentsIcon />} isActive={activePage === Page.Admin} onClick={() => setActivePage(Page.Admin)} />
+                <NavItem label="Admin" icon={<AdjustmentsIcon />} isActive={activePage === Page.Admin} onClick={() => navigateTo(Page.Admin)} />
             )}
         </div>
     );

@@ -8,8 +8,8 @@ const ZERO_BALANCES: Balances = {
     usdt: 0,
 };
 
-// Fallback rates in case the API fails
-const INITIAL_RATES = {
+// Using static rates for a stable simulation, as live API calls can be blocked.
+const STATIC_RATES = {
     btc: 65000,
     eth: 3500,
     usdt: 1,
@@ -18,7 +18,7 @@ const INITIAL_RATES = {
 export const useWalletBalance = () => {
     const { user } = useAuth();
     const [balances, setBalances] = useState<Balances>(ZERO_BALANCES);
-    const [rates, setRates] = useState(INITIAL_RATES);
+    const [rates] = useState(STATIC_RATES);
 
     useEffect(() => {
         if (user) {
@@ -37,35 +37,6 @@ export const useWalletBalance = () => {
         }
     }, [balances, user]);
     
-    useEffect(() => {
-        const fetchRates = async () => {
-            try {
-                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd');
-                if (!response.ok) {
-                    throw new Error(`API call failed with status: ${response.status}`);
-                }
-                const data = await response.json();
-                
-                if (data.bitcoin?.usd && data.ethereum?.usd && data.tether?.usd) {
-                    setRates({
-                        btc: data.bitcoin.usd,
-                        eth: data.ethereum.usd,
-                        usdt: data.tether.usd,
-                    });
-                } else {
-                     throw new Error('Invalid data structure from API');
-                }
-            } catch (error) {
-                console.error("Could not fetch cryptocurrency rates:", error);
-            }
-        };
-
-        fetchRates();
-        const interval = setInterval(fetchRates, 60000);
-
-        return () => clearInterval(interval);
-    }, []);
-
     const totalUsdValue = useMemo(() => {
         return (balances.btc * rates.btc) + (balances.eth * rates.eth) + (balances.usdt * rates.usdt);
     }, [balances, rates]);

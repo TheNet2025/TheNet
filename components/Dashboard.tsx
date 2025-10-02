@@ -19,7 +19,7 @@ interface DashboardProps {
   totalUsdValue: number;
   setBalances: React.Dispatch<React.SetStateAction<Balances>>;
   rates: Rates;
-  setActivePage: (page: Page) => void;
+  navigateTo: (page: Page) => void;
 }
 
 const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string, subValue?: string }> = ({ icon, label, value, subValue }) => (
@@ -34,7 +34,7 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string, 
 );
 
 
-const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances, rates, setActivePage }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances, rates, navigateTo }) => {
     const { isMining, setIsMining, hashrate, estimatedEarnings } = useMining();
     const { pendingPayout, nextPayoutTime } = usePayouts(hashrate, isMining, setBalances);
     const feed = useLiveFeed(isMining, hashrate);
@@ -52,7 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances,
                     <CpuChipIcon className="w-20 h-20 text-primary mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-text-dark">Start Your Mining Journey</h2>
                     <p className="text-text-muted-dark mt-2 mb-6">You don't have any active mining plans yet. Purchase hashpower from the store to begin earning cryptocurrency.</p>
-                    <Button onClick={() => setActivePage(Page.Store)} variant="primary" className="w-full !py-4">
+                    <Button onClick={() => navigateTo(Page.Store)} variant="primary" className="w-full !py-4">
                         Go to Store
                     </Button>
                 </Card>
