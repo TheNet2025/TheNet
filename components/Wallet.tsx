@@ -3,7 +3,8 @@ import Card from './common/Card';
 import Button from './common/Button';
 import Input from './common/Input';
 import { BtcIcon, EthIcon, UsdtIcon, CheckCircleIcon, CopyIcon } from './common/Icons';
-import { Transaction, TransactionStatus, TransactionType, Balances } from '../types';
+import { Transaction, TransactionStatus, TransactionType, Balances, User } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 const COINS = {
     USDT: { name: 'Tether (TRC20)', address: 'TCN8mSR9UVH57kYjbP1wfLPAg88WqJxmG7', icon: <UsdtIcon />, minWithdraw: 50 },
@@ -18,6 +19,7 @@ interface Rates {
 }
 
 const DepositView: React.FC<{}> = () => {
+    const { user } = useAuth();
     const [selectedCoin, setSelectedCoin] = useState<Coin>('USDT');
     const [copied, setCopied] = useState(false);
     const [amount, setAmount] = useState('');
@@ -34,6 +36,7 @@ const DepositView: React.FC<{}> = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) return;
         setError(null);
         const amountNum = parseFloat(amount);
         if (isNaN(amountNum) || amountNum <= 0) {
@@ -50,9 +53,10 @@ const DepositView: React.FC<{}> = () => {
             date: new Date().toISOString().slice(0, 16).replace('T', ' '),
             address: 'user_deposit_request',
         };
-        const existingTxs: Transaction[] = JSON.parse(localStorage.getItem('minerx_transactions') || '[]');
+        const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
+        const existingTxs: Transaction[] = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
         const updatedTxs = [newTx, ...existingTxs];
-        localStorage.setItem('minerx_transactions', JSON.stringify(updatedTxs));
+        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTxs));
         window.dispatchEvent(new Event('transactions_updated'));
 
         setSubmitted(true);
@@ -129,6 +133,7 @@ const DepositView: React.FC<{}> = () => {
 };
 
 const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>>; rates: Rates; }> = ({ balances, setBalances, rates }) => {
+    const { user } = useAuth();
     const [selectedCoin, setSelectedCoin] = useState<Coin>('BTC');
     const [address, setAddress] = useState('');
     const [amount, setAmount] = useState('');
@@ -142,6 +147,7 @@ const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<R
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) return;
         setError(null);
         const amountNum = parseFloat(amount);
         const minWithdraw = COINS[selectedCoin].minWithdraw;
@@ -168,10 +174,11 @@ const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<R
             date: new Date().toISOString().slice(0, 16).replace('T', ' '),
             address: address.slice(0, 12) + '...',
         };
-
-        const existingTxs: Transaction[] = JSON.parse(localStorage.getItem('minerx_transactions') || '[]');
+        
+        const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
+        const existingTxs: Transaction[] = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
         const updatedTxs = [newTx, ...existingTxs];
-        localStorage.setItem('minerx_transactions', JSON.stringify(updatedTxs));
+        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTxs));
         window.dispatchEvent(new Event('transactions_updated'));
         
         setSubmitted(true);
@@ -240,7 +247,6 @@ const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<R
 
 const Wallet: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>>; rates: Rates; }> = ({ balances, setBalances, rates }) => {
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
-  // Fix: Replaced `JSX.Element` with `React.ReactNode` to resolve namespace error.
   const coinData: { key: keyof Balances; name: string; icon: React.ReactNode }[] = [
     { key: 'btc', name: 'Bitcoin', icon: <BtcIcon /> },
     { key: 'eth', name: 'Ethereum', icon: <EthIcon /> },

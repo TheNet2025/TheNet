@@ -1,5 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
-import { User, KycStatus } from '../types';
+import { User, KycStatus, Transaction } from '../types';
+import { MOCK_TRANSACTIONS } from '../constants';
+
 
 // --- Simulation Note ---
 // This file simulates a complete authentication system on the client-side.
@@ -42,16 +44,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
   };
   
-  // --- Initialize Admin User ---
-  // This effect ensures the admin user exists in our local storage "database" on first load.
+  // --- Initialize Admin User & Data ---
+  // This effect ensures the admin user and their mock data exist on first load.
   useEffect(() => {
     const users = getStoredUsers();
     const adminExists = users.some(u => u.email.toLowerCase() === 'admin');
     if (!adminExists) {
-        // REQUIREMENT: "password hashed with bcrypt"
-        // SIMULATION: In a real app, this password would be securely hashed server-side
-        // with a library like bcrypt. We use base64 encoding (`btoa`) here to simulate
-        // a non-plaintext password, as bcrypt is not suitable for client-side execution.
         const adminPasswordHash = btoa('1995'); 
         const adminUser: User = {
             id: 'user_admin',
@@ -63,30 +61,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isVerified: true,
         };
         saveStoredUsers([...users, adminUser]);
+        
+        // Initialize admin's data for demo purposes
+        const adminBalances = { btc: 0.1234, eth: 2.5678, usdt: 5120.75 };
+        localStorage.setItem(`minerx_balances_${adminUser.id}`, JSON.stringify(adminBalances));
+        localStorage.setItem(`minerx_transactions_${adminUser.id}`, JSON.stringify(MOCK_TRANSACTIONS));
+        localStorage.setItem(`minerx_hashrate_${adminUser.id}`, '500');
     }
   }, []);
 
   // --- Session Check ---
   // On initial app load, this checks if a valid session token exists.
-  // This simulates a protected "/me" endpoint that verifies the user's token.
   useEffect(() => {
     const checkSession = () => {
       try {
         const token = localStorage.getItem(TOKEN_KEY);
         if (token) {
-          // In a real app, we would send this token to a backend /me endpoint for validation.
-          // Here, we decode and validate the token on the client for simulation.
           const decodedToken = JSON.parse(atob(token.split('.')[1]));
           if (decodedToken.exp * 1000 > Date.now()) {
             const users = getStoredUsers();
             const loggedInUser = users.find(u => u.id === decodedToken.sub);
             if (loggedInUser) {
-              // Don't store the password in the active user state for security.
               const { password, ...secureUser } = loggedInUser;
               setUser(secureUser);
             }
           } else {
-            // Token expired, log the user out.
             logout();
           }
         }
@@ -105,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setError(null);
     try {
-      await new Promise(res => setTimeout(res, 500)); // Simulate network latency
+      await new Promise(res => setTimeout(res, 500)); 
 
       const users = getStoredUsers();
       const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -120,14 +119,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return false;
       }
 
-      // In a real app, the server would compare the provided password against the stored hash.
       const isPasswordCorrect = btoa(password) === foundUser.password;
 
       if (isPasswordCorrect) {
-        // REQUIREMENT: "returns a JWT stored in HttpOnly cookie"
-        // SIMULATION: Create a simulated JWT and store it in localStorage. A real
-        // HttpOnly cookie cannot be created or accessed by client-side JavaScript.
-        const payload = { sub: foundUser.id, email: foundUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) }; // 24h expiry
+        const payload = { sub: foundUser.id, email: foundUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
         const token = `header.${btoa(JSON.stringify(payload))}.signature`;
         localStorage.setItem(TOKEN_KEY, token);
 
@@ -155,7 +150,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // Simulate hashing the password. A real backend would use bcrypt.
       const hashedPassword = btoa(password);
 
       const newUser: User = {
@@ -165,15 +159,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password: hashedPassword,
         avatar: `https://i.pravatar.cc/150?u=${email}`,
         kycStatus: KycStatus.NotVerified,
-        // REQUIREMENT: "After registration, log the user in automatically (no email verification)."
-        // This is handled here by setting isVerified to true immediately.
         isVerified: true,
       };
 
       saveStoredUsers([...users, newUser]);
+
+      // Initialize empty data stores for the new user
+      localStorage.setItem(`minerx_balances_${newUser.id}`, JSON.stringify({ btc: 0, eth: 0, usdt: 0 }));
+      localStorage.setItem(`minerx_transactions_${newUser.id}`, JSON.stringify([]));
+      localStorage.setItem(`minerx_hashrate_${newUser.id}`, '0');
       
-      // Automatically log the user in after successful registration.
-      const payload = { sub: newUser.id, email: newUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) }; // 24h expiry
+      // Automatically log the user in
+      const payload = { sub: newUser.id, email: newUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
       const token = `header.${btoa(JSON.stringify(payload))}.signature`;
       localStorage.setItem(TOKEN_KEY, token);
 
@@ -197,7 +194,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const users = getStoredUsers();
       const userIndex = users.findIndex(u => u.id === updatedUser.id);
       if (userIndex !== -1) {
-          // Ensure we don't overwrite the stored password with an empty one.
           const storedPassword = users[userIndex].password;
           users[userIndex] = { ...updatedUser, password: storedPassword };
           saveStoredUsers(users);
@@ -218,7 +214,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser: updateUser,
   };
 
-  // Fix: Replaced JSX with React.createElement to avoid parsing issues in a .ts file.
   return React.createElement(AuthContext.Provider, { value: value }, children);
 };
 

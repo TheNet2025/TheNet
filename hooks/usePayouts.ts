@@ -1,6 +1,6 @@
-// Fix: Import React to make types like React.Dispatch available.
 import React, { useState, useEffect, useRef } from 'react';
 import { Balances, Transaction, TransactionStatus, TransactionType } from '../types';
+import { useAuth } from './useAuth';
 
 const MOCK_BTC_EARNING_RATE = 0.00000000005; // BTC per GH/s per second
 const PAYOUT_INTERVAL_SECONDS = 180; // 3 minutes
@@ -11,6 +11,7 @@ export const usePayouts = (
   isMining: boolean,
   setBalances: React.Dispatch<React.SetStateAction<Balances>>
 ) => {
+  const { user } = useAuth();
   const [pendingPayout, setPendingPayout] = useState(0);
   const [nextPayoutTime, setNextPayoutTime] = useState(PAYOUT_INTERVAL_SECONDS);
 
@@ -18,7 +19,7 @@ export const usePayouts = (
   const payoutIntervalRef = useRef<number | null>(null);
 
   const processPayout = () => {
-    if (pendingPayout <= 0) return;
+    if (pendingPayout <= 0 || !user) return;
 
     const payoutAmount = pendingPayout;
     setPendingPayout(0);
@@ -37,20 +38,21 @@ export const usePayouts = (
         confirmations: 0,
     };
     
-    const existingTxs = JSON.parse(localStorage.getItem('minerx_transactions') || '[]');
-    localStorage.setItem('minerx_transactions', JSON.stringify([newTx, ...existingTxs]));
+    const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
+    const existingTxs = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
+    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify([newTx, ...existingTxs]));
     window.dispatchEvent(new Event('transactions_updated'));
 
     // Simulate confirmation delay
     setTimeout(() => {
         setBalances(prev => ({ ...prev, btc: prev.btc + payoutAmount }));
 
-        const currentTxs: Transaction[] = JSON.parse(localStorage.getItem('minerx_transactions') || '[]');
+        const currentTxs: Transaction[] = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
         const txIndex = currentTxs.findIndex(t => t.id === payoutId);
         if (txIndex !== -1) {
             currentTxs[txIndex].status = TransactionStatus.Completed;
             currentTxs[txIndex].confirmations = Math.floor(Math.random() * 20) + 6;
-            localStorage.setItem('minerx_transactions', JSON.stringify(currentTxs));
+            localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(currentTxs));
             window.dispatchEvent(new Event('transactions_updated'));
         }
     }, PAYOUT_CONFIRMATION_SECONDS * 1000);
@@ -87,7 +89,7 @@ export const usePayouts = (
       if (payoutIntervalRef.current) clearInterval(payoutIntervalRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMining, hashrate, pendingPayout]);
+  }, [isMining, hashrate, pendingPayout, user]);
 
 
   return { pendingPayout, nextPayoutTime };

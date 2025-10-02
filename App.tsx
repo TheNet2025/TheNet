@@ -12,7 +12,6 @@ import { BottomNav } from './components/BottomNav';
 import { StatusBar } from './components/common/StatusBar';
 import TransactionDetailModal from './components/common/TransactionDetailModal';
 import { Page, Theme, User, Transaction } from './types';
-import { MOCK_TRANSACTIONS } from './constants';
 import { useWalletBalance } from './hooks/useWalletBalance';
 import { useAuth } from './hooks/useAuth';
 
@@ -20,10 +19,7 @@ const MainApp: React.FC = () => {
     const { user, isUserAdmin, setUser } = useAuth();
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('minerx_theme') as Theme) || Theme.Dark);
     const [activePage, setActivePage] = useState<Page>(Page.Dashboard);
-    const [transactions, setTransactions] = useState<Transaction[]>(() => {
-        const storedTxs = localStorage.getItem('minerx_transactions');
-        return storedTxs ? JSON.parse(storedTxs) : MOCK_TRANSACTIONS;
-    });
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
     const { balances, setBalances, rates, totalUsdValue } = useWalletBalance();
 
@@ -33,15 +29,24 @@ const MainApp: React.FC = () => {
     }, [theme]);
 
     useEffect(() => {
-        const storedTxs = localStorage.getItem('minerx_transactions');
-        if (!storedTxs) {
-            localStorage.setItem('minerx_transactions', JSON.stringify(transactions));
+        if (user) {
+            const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
+            const storedTxs = localStorage.getItem(TRANSACTIONS_KEY);
+            setTransactions(storedTxs ? JSON.parse(storedTxs) : []);
+        } else {
+            setTransactions([]); // Clear on logout
         }
-    }, [transactions]);
+    }, [user]);
+
 
     useEffect(() => {
         const handleThemeUpdate = (event: Event) => setTheme((event as CustomEvent<Theme>).detail);
-        const handleTxsUpdate = () => setTransactions(JSON.parse(localStorage.getItem('minerx_transactions') || '[]'));
+        const handleTxsUpdate = () => {
+             if (user) {
+                const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
+                setTransactions(JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]'));
+            }
+        };
         
         window.addEventListener('admin_theme_update', handleThemeUpdate);
         window.addEventListener('transactions_updated', handleTxsUpdate);
@@ -50,7 +55,7 @@ const MainApp: React.FC = () => {
             window.removeEventListener('admin_theme_update', handleThemeUpdate);
             window.removeEventListener('transactions_updated', handleTxsUpdate);
         };
-    }, []);
+    }, [user]);
     
      useEffect(() => {
         if(isUserAdmin) setActivePage(Page.Admin)

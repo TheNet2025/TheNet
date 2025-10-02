@@ -5,6 +5,7 @@ import Button from './common/Button';
 import { MOCK_PLANS } from '../constants';
 import { CheckCircleIcon } from './common/Icons';
 import PaymentModal from './common/PaymentModal';
+import { useAuth } from '../hooks/useAuth';
 
 interface StoreProps {
   setActivePage: (page: Page) => void;
@@ -12,17 +13,19 @@ interface StoreProps {
 
 const Store: React.FC<StoreProps> = ({ setActivePage }) => {
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const { user } = useAuth();
 
     const handlePurchase = (plan: Plan) => {
         setSelectedPlan(plan);
     };
 
     const handlePaymentSuccess = () => {
-        if (!selectedPlan) return;
-
-        const currentHashrate = parseFloat(localStorage.getItem('minerx_hashrate') || '0');
+        if (!selectedPlan || !user) return;
+        
+        const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
+        const currentHashrate = parseFloat(localStorage.getItem(HASHRATE_KEY) || '0');
         const newHashrate = currentHashrate + selectedPlan.hashrate;
-        localStorage.setItem('minerx_hashrate', newHashrate.toString());
+        localStorage.setItem(HASHRATE_KEY, newHashrate.toString());
         window.dispatchEvent(new Event('hashpower_updated'));
 
         setTimeout(() => {

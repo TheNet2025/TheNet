@@ -1,13 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useWalletBalance } from './useWalletBalance';
+import { useAuth } from './useAuth';
 
 const MOCK_BTC_EARNING_RATE = 0.00000000005; // BTC per GH/s per second
 
 export const useMining = () => {
-  const [hashrate, setHashrate] = useState(() => parseFloat(localStorage.getItem('minerx_hashrate') || '0'));
-  const [isMining, setIsMining] = useState(hashrate > 0);
+  const { user } = useAuth();
+  const [hashrate, setHashrate] = useState(0);
+  const [isMining, setIsMining] = useState(false);
   const [estimatedEarnings, setEstimatedEarnings] = useState(0);
   const { rates } = useWalletBalance();
+  
+  useEffect(() => {
+      if (user) {
+          const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
+          const newHashrate = parseFloat(localStorage.getItem(HASHRATE_KEY) || '0');
+          setHashrate(newHashrate);
+          setIsMining(newHashrate > 0);
+      } else {
+          setHashrate(0);
+          setIsMining(false);
+      }
+  }, [user]);
 
   useEffect(() => {
     const dailyEarningsInBtc = (hashrate * MOCK_BTC_EARNING_RATE) * 60 * 60 * 24;
@@ -26,19 +40,23 @@ export const useMining = () => {
           setIsMining(false);
           break;
         case 'set_hashrate':
-          if (typeof value === 'number') {
+          if (typeof value === 'number' && user) {
+            const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
             setHashrate(value);
-            localStorage.setItem('minerx_hashrate', value.toString());
+            localStorage.setItem(HASHRATE_KEY, value.toString());
           }
           break;
       }
     };
     
     const handleHashpowerUpdate = () => {
-      const newHashrate = parseFloat(localStorage.getItem('minerx_hashrate') || '0');
-      setHashrate(newHashrate);
-      if (newHashrate > 0 && !isMining) {
-          setIsMining(true);
+      if (user) {
+          const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
+          const newHashrate = parseFloat(localStorage.getItem(HASHRATE_KEY) || '0');
+          setHashrate(newHashrate);
+          if (newHashrate > 0 && !isMining) {
+              setIsMining(true);
+          }
       }
     };
 
@@ -48,7 +66,7 @@ export const useMining = () => {
         window.removeEventListener('admin_mining_control', handleMiningControl);
         window.removeEventListener('hashpower_updated', handleHashpowerUpdate);
     };
-  }, [hashrate, isMining]);
+  }, [hashrate, isMining, user]);
 
   return { isMining, setIsMining, hashrate, estimatedEarnings };
 };
