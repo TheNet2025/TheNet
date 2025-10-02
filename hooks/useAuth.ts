@@ -112,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         kycStatus: KycStatus.NotVerified,
         isVerified: true,
         balances: { btc: 0, eth: 0, usdt: 0 },
-        hashrate: 0,
+        contracts: [],
       };
 
       // Use the centralized database function to add the new user

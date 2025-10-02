@@ -7,6 +7,7 @@ import { useLiveFeed } from '../hooks/useLiveFeed';
 import LiveFeed from './LiveFeed';
 import { BiometricIcon, ChartBarIcon, CpuChipIcon, PauseIcon, PlayIcon, ClockIcon } from './common/Icons';
 import { Balances, Page, User } from '../types';
+import ActiveMinersList from './common/ActiveMinersList';
 
 interface Rates {
     btc: number;
@@ -34,7 +35,7 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string, 
 
 
 const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, rates, navigateTo }) => {
-    const { isMining, setIsMining, hashrate, estimatedEarnings } = useMining();
+    const { isMining, setIsMining, hashrate, estimatedEarnings, activeContracts } = useMining();
     const { pendingPayout, nextPayoutTime } = usePayouts(hashrate, isMining);
     const feed = useLiveFeed(isMining, hashrate);
 
@@ -44,7 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, rates, navig
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    if (hashrate === 0) {
+    if (activeContracts.length === 0) {
         return (
             <div className="p-5 space-y-6 pb-24 text-center h-full flex flex-col justify-center">
                 <Card className="!p-8">
@@ -78,9 +79,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, rates, navig
             </Card>
 
             <div className="flex space-x-4">
-                <StatCard icon={<CpuChipIcon />} label="Current Hashrate" value={`${hashrate.toFixed(2)} GH/s`} />
+                <StatCard icon={<CpuChipIcon />} label="Total Hashrate" value={`${hashrate.toFixed(2)} GH/s`} />
                 <StatCard icon={<ChartBarIcon />} label="Daily Earnings" value={`$${estimatedEarnings.toFixed(2)}`} subValue="+5%" />
             </div>
+
+            <ActiveMinersList contracts={activeContracts} />
             
             <Card>
                 <h3 className="font-bold text-lg text-text-dark mb-4">Live Payout Status</h3>

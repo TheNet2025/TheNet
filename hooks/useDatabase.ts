@@ -1,10 +1,11 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { User, Transaction, Balances, KycStatus, TransactionStatus, TransactionType, ActivityLog } from '../types';
+import { User, Transaction, Balances, KycStatus, TransactionStatus, TransactionType, ActivityLog, Plan, MiningContract } from '../types';
 import { MOCK_TRANSACTIONS } from '../constants';
 
 const USERS_KEY = 'minerx_db_users';
 const TRANSACTIONS_KEY = 'minerx_db_transactions';
 const ACTIVITY_LOG_KEY = 'minerx_db_activity_log';
+const PLANS_KEY = 'minerx_db_plans';
 const ADMIN_EMAIL = 'albertonani79@gmail.com';
 const ADMIN_PASSWORD = 'Planetwin365@';
 
@@ -18,6 +19,37 @@ const getInitialState = <T,>(key: string, defaultValue: T): T => {
         return defaultValue;
     }
 };
+
+const MOCK_PLANS_DATA: Plan[] = [
+  {
+    id: 'plan_starter',
+    name: 'Starter Miner',
+    hashrate: 100, // GH/s
+    durationDays: 30,
+    price: 99,
+    features: ['100 GH/s BTC Mining', 'SHA-256 Algorithm', 'Daily Payouts', 'Full-time Support'],
+    bestValue: false,
+  },
+  {
+    id: 'plan_pro',
+    name: 'Pro Rig',
+    hashrate: 500, // GH/s
+    durationDays: 90,
+    price: 449,
+    features: ['500 GH/s BTC Mining', 'SHA-256 Algorithm', 'Daily Payouts', 'Priority Support'],
+    bestValue: true,
+  },
+  {
+    id: 'plan_enterprise',
+    name: 'Enterprise Farm',
+    hashrate: 2000, // GH/s
+    durationDays: 180,
+    price: 1599,
+    features: ['2 TH/s BTC Mining', 'SHA-256 Algorithm', 'Instant Payouts', 'Dedicated Manager'],
+    bestValue: false,
+  },
+];
+
 
 interface DatabaseContextType {
     // Users
@@ -35,6 +67,10 @@ interface DatabaseContextType {
     // KYC and Logging
     updateKycStatus: (userId: string, status: KycStatus) => void;
     activityLog: ActivityLog[];
+    
+    // Plans
+    plans: Plan[];
+    updatePlan: (planId: string, newPrice: number) => void;
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -43,11 +79,13 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [users, setUsers] = useState<User[]>(() => getInitialState<User[]>(USERS_KEY, []));
     const [transactions, setTransactions] = useState<Transaction[]>(() => getInitialState<Transaction[]>(TRANSACTIONS_KEY, []));
     const [activityLog, setActivityLog] = useState<ActivityLog[]>(() => getInitialState<ActivityLog[]>(ACTIVITY_LOG_KEY, []));
+    const [plans, setPlans] = useState<Plan[]>(() => getInitialState<Plan[]>(PLANS_KEY, MOCK_PLANS_DATA));
 
     // Persist to localStorage whenever data changes
     useEffect(() => localStorage.setItem(USERS_KEY, JSON.stringify(users)), [users]);
     useEffect(() => localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions)), [transactions]);
     useEffect(() => localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog)), [activityLog]);
+    useEffect(() => localStorage.setItem(PLANS_KEY, JSON.stringify(plans)), [plans]);
 
     // Initialize admin user on first load
     useEffect(() => {
@@ -55,6 +93,37 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const adminExists = prevUsers.some(u => u.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
             if (!adminExists) {
                 const adminPasswordHash = btoa(ADMIN_PASSWORD);
+
+                // Create some sample contracts for the admin
+                const now = new Date();
+                const purchaseDate1 = new Date(now);
+                const expiryDate1 = new Date(now);
+                expiryDate1.setDate(expiryDate1.getDate() + 90); // 90 days from now
+
+                const purchaseDate2 = new Date(now);
+                purchaseDate2.setDate(purchaseDate2.getDate() - 10); // 10 days ago
+                const expiryDate2 = new Date(purchaseDate2);
+                expiryDate2.setDate(expiryDate2.getDate() + 30); // expires in 20 days
+
+                const adminContracts: MiningContract[] = [
+                    {
+                        id: `contract_admin_1`,
+                        planId: 'plan_pro',
+                        planName: 'Pro Rig',
+                        hashrate: 500,
+                        purchaseDate: purchaseDate1.toISOString(),
+                        expiryDate: expiryDate1.toISOString(),
+                    },
+                    {
+                        id: `contract_admin_2`,
+                        planId: 'plan_starter',
+                        planName: 'Starter Miner',
+                        hashrate: 100,
+                        purchaseDate: purchaseDate2.toISOString(),
+                        expiryDate: expiryDate2.toISOString(),
+                    }
+                ];
+
                 const adminUser: User = {
                     id: 'user_admin',
                     username: 'Admin',
@@ -64,7 +133,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     kycStatus: KycStatus.Verified,
                     isVerified: true,
                     balances: { btc: 0.1234, eth: 2.5678, usdt: 5120.75 },
-                    hashrate: 500,
+                    contracts: adminContracts,
                 };
                  const updatedUsers = [...prevUsers, adminUser];
 
@@ -121,6 +190,20 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
             return prevUsers;
         });
+        window.dispatchEvent(new CustomEvent('db_updated'));
+    };
+    
+    const updatePlan = (planId: string, newPrice: number) => {
+        setPlans(prevPlans => {
+            const newPlans = prevPlans.map(p => {
+                if (p.id === planId) {
+                    return { ...p, price: newPrice };
+                }
+                return p;
+            });
+            return newPlans;
+        });
+        logActivity(`Admin updated price for plan ${planId} to $${newPrice}.`);
         window.dispatchEvent(new CustomEvent('db_updated'));
     };
 
@@ -203,6 +286,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateTransactionStatus,
         updateKycStatus,
         activityLog,
+        plans,
+        updatePlan
     };
 
     return React.createElement(DatabaseContext.Provider, { value }, children);

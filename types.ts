@@ -35,6 +35,15 @@ export enum KycStatus {
     Rejected = 'Rejected',
 }
 
+export interface MiningContract {
+  id: string;
+  planId: string;
+  planName: string;
+  hashrate: number;
+  purchaseDate: string; // ISO string
+  expiryDate: string;   // ISO string
+}
+
 export interface User {
   id: string;
   username: string;
@@ -45,7 +54,7 @@ export interface User {
   isVerified: boolean;
   verificationToken?: string;
   balances: Balances;
-  hashrate: number;
+  contracts: MiningContract[];
 }
 
 export enum Theme {
@@ -67,7 +76,7 @@ export interface Plan {
   id: string;
   name: string;
   hashrate: number; // in GH/s
-  duration: string;
+  durationDays: number;
   price: number;
   features: string[];
   bestValue: boolean;

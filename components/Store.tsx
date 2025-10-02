@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Page, Plan, TransactionType, TransactionStatus } from '../types';
+import { Page, Plan, TransactionType, TransactionStatus, MiningContract } from '../types';
 import Card from './common/Card';
 import Button from './common/Button';
-import { MOCK_PLANS } from '../constants';
 import { CheckCircleIcon } from './common/Icons';
 import PurchaseModal from './common/PurchaseModal';
 import { useAuth } from '../hooks/useAuth';
@@ -15,7 +14,7 @@ interface StoreProps {
 
 const Store: React.FC<StoreProps> = ({ navigateTo }) => {
     const { user } = useAuth();
-    const { updateUser, addTransaction, getUserById } = useDatabase();
+    const { updateUser, addTransaction, getUserById, plans } = useDatabase();
     const { balances } = useWalletBalance();
 
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -41,9 +40,23 @@ const Store: React.FC<StoreProps> = ({ navigateTo }) => {
         };
 
         const newBalances = { ...currentUser.balances, usdt: currentUser.balances.usdt - selectedPlan.price };
-        const newHashrate = currentUser.hashrate + selectedPlan.hashrate;
         
-        updateUser({ ...currentUser, balances: newBalances, hashrate: newHashrate });
+        const now = new Date();
+        const expiryDate = new Date(now);
+        expiryDate.setDate(expiryDate.getDate() + selectedPlan.durationDays);
+
+        const newContract: MiningContract = {
+            id: `contract_${currentUser.id}_${Date.now()}`,
+            planId: selectedPlan.id,
+            planName: selectedPlan.name,
+            hashrate: selectedPlan.hashrate,
+            purchaseDate: now.toISOString(),
+            expiryDate: expiryDate.toISOString(),
+        };
+
+        const updatedContracts = [...currentUser.contracts, newContract];
+        
+        updateUser({ ...currentUser, balances: newBalances, contracts: updatedContracts });
         
         addTransaction({
             userId: currentUser.id,
@@ -71,7 +84,7 @@ const Store: React.FC<StoreProps> = ({ navigateTo }) => {
             <p className="text-text-muted-dark -mt-4">Purchase a mining plan to start earning.</p>
 
             <div className="space-y-5">
-                {MOCK_PLANS.map((plan) => (
+                {plans.map((plan) => (
                     <Card key={plan.id} className={`!p-0 overflow-hidden transition-all duration-300 ${plan.bestValue ? 'border-2 border-primary shadow-primary/20' : ''}`}>
                         {plan.bestValue && (
                             <div className="bg-primary text-center py-1 text-sm font-bold text-black">BEST VALUE</div>
@@ -81,7 +94,7 @@ const Store: React.FC<StoreProps> = ({ navigateTo }) => {
                                 <h2 className="text-2xl font-bold text-text-dark">{plan.name}</h2>
                                 <p className="text-3xl font-extrabold text-primary">${plan.price}</p>
                             </div>
-                            <p className="text-text-muted-dark font-semibold">{plan.hashrate} GH/s <span className="text-sm font-normal">({plan.duration})</span></p>
+                            <p className="text-text-muted-dark font-semibold">{plan.hashrate} GH/s <span className="text-sm font-normal">({plan.durationDays} Days Contract)</span></p>
 
                             <ul className="my-6 space-y-3">
                                 {plan.features.map((feature, index) => (
