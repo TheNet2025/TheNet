@@ -1,8 +1,17 @@
 import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
 import { User, KycStatus } from '../types';
 
-// In a real app, this would be in a secure, HttpOnly cookie.
+// --- Simulation Note ---
+// This file simulates a complete authentication system on the client-side.
+// In a real-world application, these operations (user storage, password hashing,
+// token generation) would be handled by a secure backend server.
+
+// In a real app, the token would be a secure, HttpOnly cookie.
+// localStorage is used here for simulation purposes.
 const TOKEN_KEY = 'minerx_session_token';
+
+// This simulates a user database. In a real app, this would be a secure database
+// like PostgreSQL or MongoDB on the server.
 const USERS_KEY = 'minerx_users';
 
 interface AuthContextType {
@@ -39,8 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const users = getStoredUsers();
     const adminExists = users.some(u => u.email.toLowerCase() === 'admin');
     if (!adminExists) {
-        // In a real app, this password would be hashed server-side with bcrypt/argon2.
-        // We are base64 encoding it here to simulate a non-plaintext password.
+        // REQUIREMENT: "password hashed with bcrypt"
+        // SIMULATION: In a real app, this password would be securely hashed server-side
+        // with a library like bcrypt. We use base64 encoding (`btoa`) here to simulate
+        // a non-plaintext password, as bcrypt is not suitable for client-side execution.
         const adminPasswordHash = btoa('1995'); 
         const adminUser: User = {
             id: 'user_admin',
@@ -56,25 +67,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // --- Session Check ---
-  // On initial app load, check if a valid session token exists.
+  // On initial app load, this checks if a valid session token exists.
+  // This simulates a protected "/me" endpoint that verifies the user's token.
   useEffect(() => {
     const checkSession = () => {
       try {
         const token = localStorage.getItem(TOKEN_KEY);
         if (token) {
-          // In a real app, we would send this token to a /me endpoint to get user data.
-          // Here, we decode the token to get the user ID.
+          // In a real app, we would send this token to a backend /me endpoint for validation.
+          // Here, we decode and validate the token on the client for simulation.
           const decodedToken = JSON.parse(atob(token.split('.')[1]));
           if (decodedToken.exp * 1000 > Date.now()) {
             const users = getStoredUsers();
             const loggedInUser = users.find(u => u.id === decodedToken.sub);
             if (loggedInUser) {
-              // Don't store password in the active user state
+              // Don't store the password in the active user state for security.
               const { password, ...secureUser } = loggedInUser;
               setUser(secureUser);
             }
           } else {
-            // Token expired
+            // Token expired, log the user out.
             logout();
           }
         }
@@ -88,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkSession();
   }, []);
 
+  // Simulates a /login endpoint.
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
@@ -107,11 +120,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return false;
       }
 
-      // In a real app, the server would compare hashes. We simulate it here.
+      // In a real app, the server would compare the provided password against the stored hash.
       const isPasswordCorrect = btoa(password) === foundUser.password;
 
       if (isPasswordCorrect) {
-        // Create a simulated JWT token
+        // REQUIREMENT: "returns a JWT stored in HttpOnly cookie"
+        // SIMULATION: Create a simulated JWT and store it in localStorage. A real
+        // HttpOnly cookie cannot be created or accessed by client-side JavaScript.
         const payload = { sub: foundUser.id, email: foundUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) }; // 24h expiry
         const token = `header.${btoa(JSON.stringify(payload))}.signature`;
         localStorage.setItem(TOKEN_KEY, token);
@@ -128,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Simulates a /register endpoint.
   const register = async (username: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
@@ -149,12 +165,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password: hashedPassword,
         avatar: `https://i.pravatar.cc/150?u=${email}`,
         kycStatus: KycStatus.NotVerified,
-        isVerified: true, // User is automatically verified upon registration
+        // REQUIREMENT: "After registration, log the user in automatically (no email verification)."
+        // This is handled here by setting isVerified to true immediately.
+        isVerified: true,
       };
 
       saveStoredUsers([...users, newUser]);
       
-      // Automatically log the user in after registration
+      // Automatically log the user in after successful registration.
       const payload = { sub: newUser.id, email: newUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) }; // 24h expiry
       const token = `header.${btoa(JSON.stringify(payload))}.signature`;
       localStorage.setItem(TOKEN_KEY, token);
@@ -179,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const users = getStoredUsers();
       const userIndex = users.findIndex(u => u.id === updatedUser.id);
       if (userIndex !== -1) {
-          // Make sure we don't overwrite the stored password
+          // Ensure we don't overwrite the stored password with an empty one.
           const storedPassword = users[userIndex].password;
           users[userIndex] = { ...updatedUser, password: storedPassword };
           saveStoredUsers(users);
