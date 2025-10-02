@@ -147,9 +147,11 @@ const Admin: React.FC<AdminProps> = ({ user: initialUser, setUser: setGlobalUser
         dispatchUpdate('transactions_updated', null);
     };
     
-    const StatusIndicator: React.FC<{ status: 'Healthy' | 'Degraded' | 'Unresponsive' | 'Connected'}> = ({ status }) => {
+    const StatusIndicator: React.FC<{ status: WorkerNode['status'] | 'Online' | 'Connected' | 'Active (Daily)'}> = ({ status }) => {
         const config = {
             Healthy: { color: 'bg-success', text: 'Healthy' },
+            Online: { color: 'bg-success', text: 'Online' },
+            'Active (Daily)': { color: 'bg-success', text: 'Active' },
             Connected: { color: 'bg-success', text: 'Connected' },
             Degraded: { color: 'bg-warning', text: 'Degraded' },
             Unresponsive: { color: 'bg-danger', text: 'Unresponsive' },
@@ -186,50 +188,6 @@ const Admin: React.FC<AdminProps> = ({ user: initialUser, setUser: setGlobalUser
                     </div>
                 </Card>
             )}
-
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">User Management</h2>
-                <div className="space-y-4">
-                    <Input label="Username" value={user.username} onChange={e => setUser({...user, username: e.target.value})} />
-                    <Input label="Email" value={user.email} onChange={e => setUser({...user, email: e.target.value})} />
-                    <Input label="Avatar URL" value={user.avatar} onChange={e => setUser({...user, avatar: e.target.value})} />
-                    <div>
-                        <label className="block text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-2 ml-1">KYC Status</label>
-                        <select
-                            value={user.kycStatus}
-                            onChange={e => setUser({...user, kycStatus: e.target.value as KycStatus})}
-                            className="w-full bg-background-light dark:bg-white/5 border-2 border-border-light dark:border-border-dark rounded-2xl py-3.5 px-4 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
-                        >
-                            {Object.values(KycStatus).map(status => (
-                                <option key={status} value={status}>{status}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-                <Button onClick={handleUserSave} className="w-full mt-6">Save User</Button>
-            </Card>
-            
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">Mining Control</h2>
-                <div className="grid grid-cols-2 gap-4">
-                     <Button onClick={() => handleMiningControl('start')} variant="secondary">Start Mining</Button>
-                     <Button onClick={() => handleMiningControl('stop')} variant="danger">Stop Mining</Button>
-                </div>
-                <div className="flex items-end space-x-2 mt-4">
-                     <Input label="Set Hashrate (GH/s)" type="number" value={hashrate} onChange={e => setHashrate(parseFloat(e.target.value))} />
-                     <Button onClick={() => handleMiningControl('set_hashrate', hashrate)} variant="secondary">Set</Button>
-                </div>
-            </Card>
-
-            <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">Wallet Control</h2>
-                <div className="space-y-4">
-                    <Input label="Set BTC Balance" type="number" value={localBalances.btc} onChange={e => setLocalBalances({...localBalances, btc: parseFloat(e.target.value) || 0})} />
-                    <Input label="Set ETH Balance" type="number" value={localBalances.eth} onChange={e => setLocalBalances({...localBalances, eth: parseFloat(e.target.value) || 0})} />
-                    <Input label="Set USDT Balance" type="number" value={localBalances.usdt} onChange={e => setLocalBalances({...localBalances, usdt: parseFloat(e.target.value) || 0})} />
-                </div>
-                 <Button onClick={handleBalanceSet} variant="secondary" className="w-full mt-6">Set Balances</Button>
-            </Card>
 
             <Card>
                 <h2 className="font-bold text-xl mb-4 text-text-dark">System Monitoring & Ops</h2>
@@ -302,6 +260,50 @@ const Admin: React.FC<AdminProps> = ({ user: initialUser, setUser: setGlobalUser
                     </div>
                 </div>
             </Card>
+
+            <Card>
+                <h2 className="font-bold text-xl mb-4 text-text-dark">User Management</h2>
+                <div className="space-y-4">
+                    <Input label="Username" value={user.username} onChange={e => setUser({...user, username: e.target.value})} />
+                    <Input label="Email" value={user.email} onChange={e => setUser({...user, email: e.target.value})} />
+                    <Input label="Avatar URL" value={user.avatar} onChange={e => setUser({...user, avatar: e.target.value})} />
+                    <div>
+                        <label className="block text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-2 ml-1">KYC Status</label>
+                        <select
+                            value={user.kycStatus}
+                            onChange={e => setUser({...user, kycStatus: e.target.value as KycStatus})}
+                            className="w-full bg-background-light dark:bg-white/5 border-2 border-border-light dark:border-border-dark rounded-2xl py-3.5 px-4 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
+                        >
+                            {Object.values(KycStatus).map(status => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                <Button onClick={handleUserSave} className="w-full mt-6">Save User</Button>
+            </Card>
+            
+            <Card>
+                <h2 className="font-bold text-xl mb-4 text-text-dark">Mining Control</h2>
+                <div className="grid grid-cols-2 gap-4">
+                     <Button onClick={() => handleMiningControl('start')} variant="secondary">Start Mining</Button>
+                     <Button onClick={() => handleMiningControl('stop')} variant="danger">Stop Mining</Button>
+                </div>
+                <div className="flex items-end space-x-2 mt-4">
+                     <Input label="Set Hashrate (GH/s)" type="number" value={hashrate} onChange={e => setHashrate(parseFloat(e.target.value))} />
+                     <Button onClick={() => handleMiningControl('set_hashrate', hashrate)} variant="secondary">Set</Button>
+                </div>
+            </Card>
+
+            <Card>
+                <h2 className="font-bold text-xl mb-4 text-text-dark">Wallet Control</h2>
+                <div className="space-y-4">
+                    <Input label="Set BTC Balance" type="number" value={localBalances.btc} onChange={e => setLocalBalances({...localBalances, btc: parseFloat(e.target.value) || 0})} />
+                    <Input label="Set ETH Balance" type="number" value={localBalances.eth} onChange={e => setLocalBalances({...localBalances, eth: parseFloat(e.target.value) || 0})} />
+                    <Input label="Set USDT Balance" type="number" value={localBalances.usdt} onChange={e => setLocalBalances({...localBalances, usdt: parseFloat(e.target.value) || 0})} />
+                </div>
+                 <Button onClick={handleBalanceSet} variant="secondary" className="w-full mt-6">Set Balances</Button>
+            </Card>
             
             <Card>
                 <h2 className="font-bold text-xl mb-4 text-text-dark">Deployment & Infrastructure</h2>
@@ -312,10 +314,7 @@ const Admin: React.FC<AdminProps> = ({ user: initialUser, setUser: setGlobalUser
                                 {item.icon}
                                 <p className="font-semibold text-text-dark">{item.name}</p>
                             </div>
-                            <div className="flex items-center space-x-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-success animate-pulse"></div>
-                                <span className="font-medium text-success text-sm">{item.status}</span>
-                            </div>
+                           <StatusIndicator status={item.status as any} />
                         </div>
                     ))}
                 </div>
