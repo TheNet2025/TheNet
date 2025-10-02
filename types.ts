@@ -77,3 +77,25 @@ export interface Message {
   sender: 'user' | 'ai';
   timestamp: string;
 }
+
+// Monitoring & Ops Types
+export interface LogEntry {
+  id: string;
+  level: 'INFO' | 'WARN' | 'ERROR';
+  message: string;
+  timestamp: string;
+}
+
+export interface SystemAlert {
+  id: string;
+  severity: 'Critical' | 'Warning';
+  message: string;
+  timestamp: string;
+}
+
+export interface WorkerNode {
+  id: string;
+  name: string;
+  status: 'Healthy' | 'Degraded' | 'Unresponsive';
+  ip: string;
+}

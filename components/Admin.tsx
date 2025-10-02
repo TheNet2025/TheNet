@@ -3,8 +3,31 @@ import Card from './common/Card';
 import Input from './common/Input';
 import Button from './common/Button';
 import Toggle from './common/Toggle';
-import { User, Theme, Transaction, TransactionType, TransactionStatus, Balances, KycStatus } from '../types';
-import { TrashIcon, PlusIcon } from './common/Icons';
+import { User, Theme, Transaction, TransactionType, TransactionStatus, Balances, KycStatus, SystemAlert, WorkerNode } from '../types';
+import { TrashIcon, PlusIcon, ExclamationTriangleIcon, ServerIcon, ChartPieIcon, CodeBracketIcon, DocumentTextIcon } from './common/Icons';
+import MetricChart from './common/MetricChart';
+import LiveLogViewer from './common/LiveLogViewer';
+
+
+const MOCK_ALERTS: SystemAlert[] = [
+    { id: 'alert1', severity: 'Critical', message: 'Payout Worker #3 is unresponsive. No payouts processed in 15 mins.', timestamp: '2 mins ago' },
+    { id: 'alert2', severity: 'Warning', message: 'High rate of failed withdrawal attempts from IP 123.45.67.89.', timestamp: '28 mins ago' },
+];
+
+const MOCK_WORKERS: WorkerNode[] = [
+    { id: 'worker1', name: 'Payout Worker #1', status: 'Healthy', ip: '192.168.1.101' },
+    { id: 'worker2', name: 'Share Aggregator #1', status: 'Healthy', ip: '192.168.1.102' },
+    { id: 'worker3', name: 'Payout Worker #2', status: 'Degraded', ip: '192.168.1.103' },
+    { id: 'worker4', name: 'Stratum Gateway #1', status: 'Healthy', ip: '192.168.1.104' },
+    { id: 'worker5', name: 'Payout Worker #3', status: 'Unresponsive', ip: '192.168.1.105' },
+];
+
+const MOCK_DEPLOYMENTS = [
+    { id: 'dep1', commit: 'a1b2c3d', message: 'fix: resolved payout calculation bug', status: 'Deployed', timestamp: '2 hours ago' },
+    { id: 'dep2', commit: 'e4f5g6h', message: 'feat: added new ETH mining plan', status: 'Deployed', timestamp: '1 day ago' },
+    { id: 'dep3', commit: 'i7j8k9l', message: 'refactor: optimized database queries', status: 'Deployed', timestamp: '2 days ago' },
+];
+
 
 interface AdminProps {
     balances: Balances;
@@ -110,10 +133,25 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
         localStorage.setItem('minerx_transactions', JSON.stringify(updatedTxs));
         dispatchUpdate('transactions_updated', null);
     };
+    
+    const StatusIndicator: React.FC<{ status: 'Healthy' | 'Degraded' | 'Unresponsive' | 'Connected'}> = ({ status }) => {
+        const config = {
+            Healthy: { color: 'bg-success', text: 'Healthy' },
+            Connected: { color: 'bg-success', text: 'Connected' },
+            Degraded: { color: 'bg-warning', text: 'Degraded' },
+            Unresponsive: { color: 'bg-danger', text: 'Unresponsive' },
+        }[status];
+        return (
+            <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${config.color} animate-pulse`}></div>
+                <span className="font-semibold text-text-dark">{config.text}</span>
+            </div>
+        );
+    };
 
 
     return (
-        <div className="p-5 space-y-6">
+        <div className="p-5 space-y-6 pb-24">
             <h1 className="text-4xl font-extrabold text-text-dark">Admin Panel</h1>
             
             {pendingTransactions.length > 0 && (
@@ -179,12 +217,76 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
                 </div>
                  <Button onClick={handleBalanceSet} variant="secondary" className="w-full mt-6">Set Balances</Button>
             </Card>
-            
+
             <Card>
-                <h2 className="font-bold text-xl mb-4 text-text-dark">App Settings</h2>
-                <div className="flex justify-between items-center">
-                    <span className="font-medium text-lg text-text-dark">Dark Mode</span>
-                    <Toggle label="Theme" enabled={theme === Theme.Dark} onChange={handleThemeChange} />
+                <h2 className="font-bold text-xl mb-4 text-text-dark">System Monitoring & Ops</h2>
+                
+                <div className="space-y-6">
+                    {/* Metrics */}
+                    <div className="bg-secondary/50 p-4 rounded-xl">
+                        <h3 className="font-semibold text-lg text-text-dark mb-3 flex items-center"><ChartPieIcon className="w-5 h-5 mr-2 text-primary" />Metrics Overview</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                           <MetricChart title="API Latency (p95)" unit="ms" color="#00E5FF" />
+                           <MetricChart title="DB Queries/sec" unit="qps" color="#00FF85" />
+                        </div>
+                        <div className="mt-4 p-3 bg-background-dark/50 rounded-lg flex justify-between items-center">
+                            <span className="text-text-muted-dark font-medium">Pool Connection:</span>
+                            <StatusIndicator status="Connected" />
+                        </div>
+                    </div>
+
+                    {/* Worker Status */}
+                    <div className="bg-secondary/50 p-4 rounded-xl">
+                        <h3 className="font-semibold text-lg text-text-dark mb-3 flex items-center"><ServerIcon className="w-5 h-5 mr-2 text-primary" />Worker Status</h3>
+                        <div className="space-y-2">
+                            {MOCK_WORKERS.map(worker => (
+                                <div key={worker.id} className="flex justify-between items-center bg-background-dark/50 p-2 rounded-lg text-sm">
+                                    <div>
+                                        <p className="font-medium text-text-dark">{worker.name}</p>
+                                        <p className="text-xs text-text-muted-dark font-mono">{worker.ip}</p>
+                                    </div>
+                                    <StatusIndicator status={worker.status} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* Active Alerts */}
+                    <div className="bg-secondary/50 p-4 rounded-xl">
+                        <h3 className="font-semibold text-lg text-text-dark mb-3 flex items-center"><ExclamationTriangleIcon className="w-5 h-5 mr-2 text-danger" />Active Alerts</h3>
+                        <div className="space-y-2">
+                            {MOCK_ALERTS.map(alert => (
+                                <div key={alert.id} className={`p-3 rounded-lg border-l-4 ${alert.severity === 'Critical' ? 'bg-danger/10 border-danger' : 'bg-warning/10 border-warning'}`}>
+                                    <p className="font-bold text-text-dark">{alert.severity}: <span className="font-normal">{alert.message}</span></p>
+                                    <p className="text-xs text-text-muted-dark mt-1">{alert.timestamp}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* Live Logs */}
+                    <LiveLogViewer />
+
+                    {/* Deployments & Ops */}
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-secondary/50 p-4 rounded-xl">
+                             <h3 className="font-semibold text-text-dark mb-3 flex items-center"><CodeBracketIcon className="w-5 h-5 mr-2 text-primary" />Recent Deploys</h3>
+                             <div className="space-y-2 text-sm">
+                                {MOCK_DEPLOYMENTS.slice(0, 2).map(d => (
+                                    <div key={d.id} className="p-2 bg-background-dark/50 rounded-lg">
+                                        <p className="font-mono text-primary text-xs">{d.commit}</p>
+                                        <p className="text-text-dark truncate">{d.message}</p>
+                                        <p className="text-xs text-text-muted-dark">{d.timestamp}</p>
+                                    </div>
+                                ))}
+                             </div>
+                        </div>
+                         <div className="bg-secondary/50 p-4 rounded-xl flex flex-col justify-between">
+                             <h3 className="font-semibold text-text-dark mb-3 flex items-center"><DocumentTextIcon className="w-5 h-5 mr-2 text-primary" />Operations</h3>
+                             <p className="text-sm text-text-muted-dark flex-grow">Access internal documentation for incident response.</p>
+                             <Button variant="ghost" onClick={() => alert('Runbooks are maintained in the internal Confluence space.')}>View Runbooks</Button>
+                        </div>
+                    </div>
                 </div>
             </Card>
 
@@ -207,6 +309,15 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
                     ))}
                 </div>
             </Card>
+
+            <Card>
+                <h2 className="font-bold text-xl mb-4 text-text-dark">App Settings</h2>
+                <div className="flex justify-between items-center">
+                    <span className="font-medium text-lg text-text-dark">Dark Mode</span>
+                    <Toggle label="Theme" enabled={theme === Theme.Dark} onChange={handleThemeChange} />
+                </div>
+            </Card>
+
         </div>
     );
 };
