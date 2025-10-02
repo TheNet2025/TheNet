@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 export enum TransactionType {
   Deposit = 'Deposit',
   Withdrawal = 'Withdrawal',
+  Payout = 'Payout',
 }
 
 export enum TransactionStatus {
@@ -19,6 +20,9 @@ export interface Transaction {
   currency: string;
   date: string;
   address: string;
+  txHash?: string;
+  confirmations?: number;
+  payoutCycleId?: string;
 }
 
 export enum KycStatus {

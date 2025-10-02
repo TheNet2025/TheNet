@@ -11,6 +11,7 @@ import Store from './components/Store';
 import Chat from './components/Chat';
 import { BottomNav } from './components/BottomNav';
 import { StatusBar } from './components/common/StatusBar';
+import TransactionDetailModal from './components/common/TransactionDetailModal';
 import { Page, Theme, User, Transaction, KycStatus } from './types';
 import { MOCK_TRANSACTIONS } from './constants';
 import { useWalletBalance } from './hooks/useWalletBalance';
@@ -32,7 +33,6 @@ function App() {
     const storedUser = localStorage.getItem('minerx_user');
     if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        // Add default kycStatus if it's missing from old stored data
         if (!parsedUser.kycStatus) {
             parsedUser.kycStatus = KycStatus.NotVerified;
         }
@@ -44,6 +44,8 @@ function App() {
       const storedTxs = localStorage.getItem('minerx_transactions');
       return storedTxs ? JSON.parse(storedTxs) : MOCK_TRANSACTIONS;
   });
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+
 
   const { balances, setBalances, rates, totalUsdValue } = useWalletBalance();
 
@@ -103,7 +105,7 @@ function App() {
       case Page.Store:
         return <Store setActivePage={setActivePage} />;
       case Page.History:
-        return <History transactions={transactions} />;
+        return <History transactions={transactions} onSelectTx={setSelectedTx} />;
       case Page.Settings:
         return <Settings user={user} onLogout={handleLogout} theme={theme} setTheme={setTheme} onNavigateToProfile={() => setActivePage(Page.Profile)} />;
       case Page.Profile:
@@ -130,6 +132,7 @@ function App() {
                 {renderPage()}
             </main>
             <BottomNav activePage={activePage} setActivePage={setActivePage} isAdmin={isAdmin} />
+            {selectedTx && <TransactionDetailModal tx={selectedTx} onClose={() => setSelectedTx(null)} />}
         </div>
     </div>
   );

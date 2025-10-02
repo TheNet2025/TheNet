@@ -1,47 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Balances } from '../types';
+import React, { useState, useEffect } from 'react';
+import { useWalletBalance } from './useWalletBalance';
 
 const MOCK_BTC_EARNING_RATE = 0.00000000005; // BTC per GH/s per second
 
-interface Rates {
-    btc: number;
-    eth: number;
-    usdt: number;
-}
-
-export const useMining = (setBalances: React.Dispatch<React.SetStateAction<Balances>>, rates: Rates) => {
+export const useMining = () => {
   const [hashrate, setHashrate] = useState(() => parseFloat(localStorage.getItem('minerx_hashrate') || '0'));
   const [isMining, setIsMining] = useState(hashrate > 0);
   const [estimatedEarnings, setEstimatedEarnings] = useState(0);
-
-  const intervalRef = useRef<number | null>(null);
-
-  const startMining = () => {
-    if (intervalRef.current !== null) return;
-    setIsMining(true);
-    intervalRef.current = window.setInterval(() => {
-        const earningsPerSecond = hashrate * MOCK_BTC_EARNING_RATE;
-        setBalances(prev => ({ ...prev, btc: prev.btc + earningsPerSecond }));
-    }, 1000);
-  };
-
-  const stopMining = () => {
-    setIsMining(false);
-    if (intervalRef.current !== null) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    if (isMining && hashrate > 0) {
-      startMining();
-    } else {
-      stopMining();
-    }
-    return () => stopMining();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMining, hashrate]);
+  const { rates } = useWalletBalance();
 
   useEffect(() => {
     const dailyEarningsInBtc = (hashrate * MOCK_BTC_EARNING_RATE) * 60 * 60 * 24;

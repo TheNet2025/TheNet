@@ -1,7 +1,12 @@
 import React from 'react';
 import { Transaction, TransactionStatus, TransactionType } from '../types';
 import Card from './common/Card';
-import { DepositIcon, WithdrawIcon, HistoryIcon } from './common/Icons';
+import { DepositIcon, WithdrawIcon, HistoryIcon, GiftIcon } from './common/Icons';
+
+interface HistoryProps {
+  transactions: Transaction[];
+  onSelectTx: (tx: Transaction) => void;
+}
 
 const statusStyles: Record<TransactionStatus, string> = {
   [TransactionStatus.Completed]: 'text-success bg-success/10 border border-success/20',
@@ -9,28 +14,45 @@ const statusStyles: Record<TransactionStatus, string> = {
   [TransactionStatus.Failed]: 'text-danger bg-danger/10 border border-danger/20',
 };
 
-const typeIcons: Record<TransactionType, React.ReactNode> = {
-    [TransactionType.Deposit]: (
-        <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
-            <DepositIcon className="h-6 w-6 text-success" />
-        </div>
-    ),
-    [TransactionType.Withdrawal]: (
-        <div className="h-12 w-12 rounded-xl bg-danger/10 flex items-center justify-center">
-            <WithdrawIcon className="h-6 w-6 text-danger" />
-        </div>
-    )
+const typeConfigs: Record<TransactionType, { icon: React.ReactNode; color: string }> = {
+    [TransactionType.Deposit]: {
+        icon: (
+            <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <DepositIcon className="h-6 w-6 text-success" />
+            </div>
+        ),
+        color: 'text-success',
+    },
+    [TransactionType.Withdrawal]: {
+        icon: (
+            <div className="h-12 w-12 rounded-xl bg-danger/10 flex items-center justify-center">
+                <WithdrawIcon className="h-6 w-6 text-danger" />
+            </div>
+        ),
+        color: 'text-danger',
+    },
+    [TransactionType.Payout]: {
+        icon: (
+             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <GiftIcon className="h-6 w-6 text-primary" />
+            </div>
+        ),
+        color: 'text-primary',
+    },
 };
 
 
-const TransactionItem: React.FC<{ tx: Transaction }> = ({ tx }) => {
+const TransactionItem: React.FC<{ tx: Transaction, onSelect: () => void }> = ({ tx, onSelect }) => {
+  const config = typeConfigs[tx.type];
+  const sign = tx.type === TransactionType.Withdrawal ? '-' : '+';
+
   return (
-    <Card className="flex items-center space-x-4 !p-4">
-      {typeIcons[tx.type]}
+    <Card className="flex items-center space-x-4 !p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={onSelect}>
+      {config.icon}
       <div className="flex-1">
         <div className="flex justify-between items-center">
           <p className="font-bold text-text-dark text-lg">{tx.type}</p>
-          <p className={`font-bold text-lg ${tx.type === TransactionType.Deposit ? 'text-success' : 'text-danger'}`}>{tx.type === TransactionType.Deposit ? '+' : '-'}{tx.amount.toFixed(4)} {tx.currency}</p>
+          <p className={`font-bold text-lg ${config.color}`}>{sign}{tx.amount.toFixed(8)} {tx.currency}</p>
         </div>
         <div className="flex justify-between items-center text-sm mt-1">
           <p className="text-text-muted-dark">{tx.date}</p>
@@ -41,14 +63,14 @@ const TransactionItem: React.FC<{ tx: Transaction }> = ({ tx }) => {
   );
 };
 
-const History: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
+const History: React.FC<HistoryProps> = ({ transactions, onSelectTx }) => {
   return (
     <div className="p-5">
       <h1 className="text-4xl font-extrabold mb-8 text-text-dark">Transaction History</h1>
       {transactions.length > 0 ? (
         <div className="space-y-4">
           {transactions.map(tx => (
-            <TransactionItem key={tx.id} tx={tx} />
+            <TransactionItem key={tx.id} tx={tx} onSelect={() => onSelectTx(tx)} />
           ))}
         </div>
       ) : (

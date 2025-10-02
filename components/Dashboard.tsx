@@ -2,9 +2,10 @@ import React from 'react';
 import Card from './common/Card';
 import Button from './common/Button';
 import { useMining } from '../hooks/useMining';
+import { usePayouts } from '../hooks/usePayouts';
 import { useLiveFeed } from '../hooks/useLiveFeed';
 import LiveFeed from './LiveFeed';
-import { BiometricIcon, ChartBarIcon, CpuChipIcon, PauseIcon, PlayIcon } from './common/Icons';
+import { BiometricIcon, ChartBarIcon, CpuChipIcon, PauseIcon, PlayIcon, ClockIcon } from './common/Icons';
 import { Balances, Page, User } from '../types';
 
 interface Rates {
@@ -34,8 +35,15 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string, 
 
 
 const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances, rates, setActivePage }) => {
-    const { isMining, setIsMining, hashrate, estimatedEarnings } = useMining(setBalances, rates);
-    const feed = useLiveFeed(isMining);
+    const { isMining, setIsMining, hashrate, estimatedEarnings } = useMining();
+    const { pendingPayout, nextPayoutTime } = usePayouts(hashrate, isMining, setBalances);
+    const feed = useLiveFeed(isMining, hashrate);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
 
     if (hashrate === 0) {
         return (
@@ -74,6 +82,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances,
                 <StatCard icon={<CpuChipIcon />} label="Current Hashrate" value={`${hashrate.toFixed(2)} GH/s`} />
                 <StatCard icon={<ChartBarIcon />} label="Daily Earnings" value={`$${estimatedEarnings.toFixed(2)}`} subValue="+5%" />
             </div>
+            
+            <Card>
+                <h3 className="font-bold text-lg text-text-dark mb-4">Live Payout Status</h3>
+                <div className="flex justify-between items-center bg-secondary/50 p-4 rounded-2xl">
+                    <div>
+                        <p className="text-sm text-text-muted-dark">Pending Rewards</p>
+                        <p className="font-bold text-2xl text-text-dark">{pendingPayout.toFixed(8)} BTC</p>
+                        <p className="text-sm font-semibold text-success">~ ${(pendingPayout * rates.btc).toFixed(4)}</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-sm text-text-muted-dark">Next Payout In</p>
+                        <div className="flex items-center space-x-2">
+                           <ClockIcon className="w-6 h-6 text-primary"/>
+                           <p className="font-mono font-bold text-2xl text-primary">{formatTime(nextPayoutTime)}</p>
+                        </div>
+                    </div>
+                </div>
+            </Card>
 
             <Card>
                 <div className="flex justify-between items-center">
@@ -95,17 +121,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances,
 
             <Card>
                 <LiveFeed feed={feed} />
-            </Card>
-
-            <Card className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 flex items-center justify-center text-primary"><BiometricIcon /></div>
-                    <div>
-                        <h3 className="font-bold text-text-dark">Quick Withdrawal</h3>
-                        <p className="text-xs text-text-muted-dark">Biometric confirmation</p>
-                    </div>
-                </div>
-                <Button variant="secondary" className="!px-6">Send</Button>
             </Card>
         </div>
     );
