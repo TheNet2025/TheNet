@@ -3,8 +3,8 @@ import Card from './common/Card';
 import Input from './common/Input';
 import Button from './common/Button';
 import Toggle from './common/Toggle';
-import { User, Theme, Transaction, TransactionType, TransactionStatus, Balances } from '../types';
-import { TrashIcon, PlusIcon, CheckCircleIcon } from './common/Icons';
+import { User, Theme, Transaction, TransactionType, TransactionStatus, Balances, KycStatus } from '../types';
+import { TrashIcon, PlusIcon } from './common/Icons';
 
 interface AdminProps {
     balances: Balances;
@@ -42,10 +42,8 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
         const tx = currentTxs[txIndex];
         const newStatus = action === 'approve' ? TransactionStatus.Completed : TransactionStatus.Failed;
         
-        // Update transaction status
         currentTxs[txIndex].status = newStatus;
 
-        // Update balances if necessary
         const currentBalances: Balances = JSON.parse(localStorage.getItem('minerx_balances') || '{}');
         let balancesUpdated = false;
 
@@ -54,13 +52,11 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
             currentBalances[currencyKey] = (currentBalances[currencyKey] || 0) + tx.amount;
             balancesUpdated = true;
         } else if (tx.type === TransactionType.Withdrawal && action === 'reject') {
-            // Refund the held amount
             const currencyKey = tx.currency.toLowerCase() as keyof Balances;
             currentBalances[currencyKey] = (currentBalances[currencyKey] || 0) + tx.amount;
             balancesUpdated = true;
         }
         
-        // Save and dispatch updates
         localStorage.setItem('minerx_transactions', JSON.stringify(currentTxs));
         dispatchUpdate('transactions_updated', null);
         
@@ -146,6 +142,18 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
                     <Input label="Username" value={user.username} onChange={e => setUser({...user, username: e.target.value})} />
                     <Input label="Email" value={user.email} onChange={e => setUser({...user, email: e.target.value})} />
                     <Input label="Avatar URL" value={user.avatar} onChange={e => setUser({...user, avatar: e.target.value})} />
+                    <div>
+                        <label className="block text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-2 ml-1">KYC Status</label>
+                        <select
+                            value={user.kycStatus}
+                            onChange={e => setUser({...user, kycStatus: e.target.value as KycStatus})}
+                            className="w-full bg-background-light dark:bg-white/5 border-2 border-border-light dark:border-border-dark rounded-2xl py-3.5 px-4 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
+                        >
+                            {Object.values(KycStatus).map(status => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
                 <Button onClick={handleUserSave} className="w-full mt-6">Save User</Button>
             </Card>

@@ -1,3 +1,5 @@
+import { ReactNode } from "react";
+
 export enum TransactionType {
   Deposit = 'Deposit',
   Withdrawal = 'Withdrawal',
@@ -19,10 +21,18 @@ export interface Transaction {
   address: string;
 }
 
+export enum KycStatus {
+    NotVerified = 'Not Verified',
+    Pending = 'Pending',
+    Verified = 'Verified',
+    Rejected = 'Rejected',
+}
+
 export interface User {
   username: string;
   email: string;
   avatar: string;
+  kycStatus: KycStatus;
 }
 
 export enum Theme {

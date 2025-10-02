@@ -11,7 +11,7 @@ import Store from './components/Store';
 import Chat from './components/Chat';
 import { BottomNav } from './components/BottomNav';
 import { StatusBar } from './components/common/StatusBar';
-import { Page, Theme, User, Transaction, Balances } from './types';
+import { Page, Theme, User, Transaction, KycStatus } from './types';
 import { MOCK_TRANSACTIONS } from './constants';
 import { useWalletBalance } from './hooks/useWalletBalance';
 
@@ -19,6 +19,7 @@ const MOCK_USER: User = {
   username: 'Satoshi',
   email: 'satoshi@nakamoto.com',
   avatar: 'https://i.pravatar.cc/150?u=satoshi',
+  kycStatus: KycStatus.NotVerified,
 };
 
 function App() {
@@ -29,7 +30,15 @@ function App() {
   const [activePage, setActivePage] = useState<Page>(Page.Dashboard);
   const [user, setUser] = useState<User>(() => {
     const storedUser = localStorage.getItem('minerx_user');
-    return storedUser ? JSON.parse(storedUser) : MOCK_USER;
+    if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        // Add default kycStatus if it's missing from old stored data
+        if (!parsedUser.kycStatus) {
+            parsedUser.kycStatus = KycStatus.NotVerified;
+        }
+        return parsedUser;
+    }
+    return MOCK_USER;
   });
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
       const storedTxs = localStorage.getItem('minerx_transactions');
