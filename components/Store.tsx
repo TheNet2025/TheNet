@@ -1,28 +1,36 @@
 import React, { useState } from 'react';
-import { Page } from '../types';
+import { Page, Plan } from '../types';
 import Card from './common/Card';
 import Button from './common/Button';
 import { MOCK_PLANS } from '../constants';
 import { CheckCircleIcon } from './common/Icons';
+import PaymentModal from './common/PaymentModal';
 
 interface StoreProps {
   setActivePage: (page: Page) => void;
 }
 
 const Store: React.FC<StoreProps> = ({ setActivePage }) => {
-    const [purchasedId, setPurchasedId] = useState<string | null>(null);
+    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
-    const handlePurchase = (hashrate: number, planId: string) => {
+    const handlePurchase = (plan: Plan) => {
+        setSelectedPlan(plan);
+    };
+
+    const handlePaymentSuccess = () => {
+        if (!selectedPlan) return;
+
         const currentHashrate = parseFloat(localStorage.getItem('minerx_hashrate') || '0');
-        const newHashrate = currentHashrate + hashrate;
+        const newHashrate = currentHashrate + selectedPlan.hashrate;
         localStorage.setItem('minerx_hashrate', newHashrate.toString());
         window.dispatchEvent(new Event('hashpower_updated'));
 
-        setPurchasedId(planId);
         setTimeout(() => {
+            setSelectedPlan(null);
             setActivePage(Page.Dashboard);
-        }, 2000);
+        }, 1500);
     };
+
 
     return (
         <div className="p-5 space-y-6 pb-24">
@@ -52,17 +60,25 @@ const Store: React.FC<StoreProps> = ({ setActivePage }) => {
                             </ul>
 
                             <Button 
-                                onClick={() => handlePurchase(plan.hashrate, plan.id)} 
+                                onClick={() => handlePurchase(plan)} 
                                 className="w-full !py-3.5"
                                 variant={plan.bestValue ? 'primary' : 'secondary'}
-                                disabled={!!purchasedId}
+                                disabled={!!selectedPlan}
                             >
-                                {purchasedId === plan.id ? 'Purchased!' : 'Purchase Plan'}
+                                Purchase Plan
                             </Button>
                         </div>
                     </Card>
                 ))}
             </div>
+
+            {selectedPlan && (
+                <PaymentModal
+                    plan={selectedPlan}
+                    onClose={() => setSelectedPlan(null)}
+                    onSuccess={handlePaymentSuccess}
+                />
+            )}
         </div>
     );
 };
