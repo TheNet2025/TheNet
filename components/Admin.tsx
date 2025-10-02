@@ -4,7 +4,7 @@ import Input from './common/Input';
 import Button from './common/Button';
 import Toggle from './common/Toggle';
 import { User, Theme, Transaction, TransactionType, TransactionStatus, Balances, KycStatus, SystemAlert, WorkerNode } from '../types';
-import { TrashIcon, PlusIcon, ExclamationTriangleIcon, ServerIcon, ChartPieIcon, CodeBracketIcon, DocumentTextIcon } from './common/Icons';
+import { TrashIcon, PlusIcon, ExclamationTriangleIcon, ServerIcon, ChartPieIcon, CodeBracketIcon, DocumentTextIcon, CloudIcon, CircleStackIcon, ArchiveBoxIcon, BoltIcon } from './common/Icons';
 import MetricChart from './common/MetricChart';
 import LiveLogViewer from './common/LiveLogViewer';
 
@@ -26,6 +26,14 @@ const MOCK_DEPLOYMENTS = [
     { id: 'dep1', commit: 'a1b2c3d', message: 'fix: resolved payout calculation bug', status: 'Deployed', timestamp: '2 hours ago' },
     { id: 'dep2', commit: 'e4f5g6h', message: 'feat: added new ETH mining plan', status: 'Deployed', timestamp: '1 day ago' },
     { id: 'dep3', commit: 'i7j8k9l', message: 'refactor: optimized database queries', status: 'Deployed', timestamp: '2 days ago' },
+];
+
+const MOCK_INFRA_STATUS = [
+    { name: 'Container Registry', status: 'Online', icon: <CodeBracketIcon className="w-5 h-5 text-primary" /> },
+    { name: 'Kubernetes Cluster (GKE)', status: 'Healthy', icon: <CloudIcon className="w-5 h-5 text-primary" /> },
+    { name: 'PostgreSQL Database', status: 'Connected', icon: <CircleStackIcon className="w-5 h-5 text-primary" /> },
+    { name: 'Redis Cache', status: 'Connected', icon: <BoltIcon className="w-5 h-5 text-primary" /> },
+    { name: 'Automated Backups', status: 'Active (Daily)', icon: <ArchiveBoxIcon className="w-5 h-5 text-primary" /> },
 ];
 
 
@@ -288,6 +296,27 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
                         </div>
                     </div>
                 </div>
+            </Card>
+            
+            <Card>
+                <h2 className="font-bold text-xl mb-4 text-text-dark">Deployment & Infrastructure</h2>
+                <div className="space-y-3">
+                    {MOCK_INFRA_STATUS.map(item => (
+                        <div key={item.name} className="flex justify-between items-center bg-secondary/50 p-3 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                                {item.icon}
+                                <p className="font-semibold text-text-dark">{item.name}</p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-success animate-pulse"></div>
+                                <span className="font-medium text-success text-sm">{item.status}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <p className="text-xs text-text-muted-dark mt-4 text-center">
+                    All services are containerized via Docker and deployed on a managed Kubernetes cluster.
+                </p>
             </Card>
 
             <Card>
