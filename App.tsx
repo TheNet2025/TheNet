@@ -5,7 +5,6 @@ import Dashboard from './components/Dashboard';
 import Wallet from './components/Wallet';
 import History from './components/History';
 import Settings from './components/Settings';
-import Profile from './components/Profile';
 import Admin from './components/Admin';
 import Store from './components/Store';
 import Chat from './components/Chat';
@@ -71,9 +70,7 @@ const MainApp: React.FC = () => {
             case Page.History:
                 return <History transactions={transactions} onSelectTx={setSelectedTx} />;
             case Page.Settings:
-                return <Settings user={user} onNavigateToProfile={() => setActivePage(Page.Profile)} theme={theme} setTheme={setTheme} />;
-            case Page.Profile:
-                return <Profile user={user} setUser={setUser} onBack={() => setActivePage(Page.Settings)} />;
+                return <Settings user={user} setUser={setUser} theme={theme} setTheme={setTheme} />;
             case Page.Admin:
                 return isUserAdmin ? <Admin user={user} setUser={setUser} balances={balances} setBalances={setBalances} /> : <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} setActivePage={setActivePage} />;
             default:

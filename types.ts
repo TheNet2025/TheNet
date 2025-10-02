@@ -55,7 +55,6 @@ export enum Page {
     Store = 'store',
     History = 'history',
     Settings = 'settings',
-    Profile = 'profile',
     Admin = 'admin',
 }
 
