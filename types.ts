@@ -58,8 +58,6 @@ export enum Page {
     History = 'history',
     Settings = 'settings',
     Admin = 'admin',
-    AdminLogin = 'admin_login',
-    AdminUserDetail = 'admin_user_detail',
 }
 
 export interface Plan {

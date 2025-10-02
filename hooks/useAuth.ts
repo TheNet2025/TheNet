@@ -8,6 +8,10 @@ import { MOCK_TRANSACTIONS } from '../constants';
 // In a real-world application, these operations (user storage, password hashing,
 // token generation) would be handled by a secure backend server.
 
+// --- Constants for Admin credentials ---
+const ADMIN_EMAIL = 'albertonani79@gmail.com';
+const ADMIN_PASSWORD = 'Planetwin365@';
+
 // In a real app, the token would be a secure, HttpOnly cookie.
 // localStorage is used here for simulation purposes.
 const TOKEN_KEY = 'minerx_session_token';
@@ -45,28 +49,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   // --- Initialize Admin User & Data ---
-  // This effect ensures the admin user and their mock data exist on first load.
+  // This effect ensures the admin user (with the correct credentials) and their mock data exist on first load.
   useEffect(() => {
-    const users = getStoredUsers();
-    const adminExists = users.some(u => u.email.toLowerCase() === 'admin');
-    if (!adminExists) {
-        const adminPasswordHash = btoa('1995'); 
-        const adminUser: User = {
-            id: 'user_admin',
+    let users = getStoredUsers();
+    const newAdminEmail = ADMIN_EMAIL.toLowerCase();
+    const oldAdminEmail = 'admin';
+
+    const newAdminIndex = users.findIndex(u => u.email.toLowerCase() === newAdminEmail);
+    const oldAdminIndex = users.findIndex(u => u.email.toLowerCase() === oldAdminEmail);
+
+    let adminUser: User | null = null;
+    let needsSave = false;
+
+    if (newAdminIndex > -1) {
+        // New admin already exists, just ensure password is correct
+        adminUser = users[newAdminIndex];
+        const correctPasswordHash = btoa(ADMIN_PASSWORD);
+        if (adminUser.password !== correctPasswordHash) {
+            adminUser.password = correctPasswordHash;
+            needsSave = true;
+        }
+    } else if (oldAdminIndex > -1) {
+        // Old admin exists, let's migrate it to the new credentials to preserve data
+        adminUser = users[oldAdminIndex];
+        adminUser.email = ADMIN_EMAIL;
+        adminUser.password = btoa(ADMIN_PASSWORD);
+        adminUser.avatar = `https://i.pravatar.cc/150?u=${ADMIN_EMAIL}`;
+        needsSave = true;
+    } else {
+        // Neither exists, create a new admin user from scratch
+        const adminPasswordHash = btoa(ADMIN_PASSWORD); 
+        adminUser = {
+            id: 'user_admin', // Keep a consistent ID for the admin user
             username: 'Admin',
-            email: 'admin',
+            email: ADMIN_EMAIL, 
             password: adminPasswordHash,
-            avatar: 'https://i.pravatar.cc/150?u=admin',
+            avatar: `https://i.pravatar.cc/150?u=${ADMIN_EMAIL}`,
             kycStatus: KycStatus.Verified,
             isVerified: true,
         };
-        saveStoredUsers([...users, adminUser]);
+        users.push(adminUser);
         
-        // Initialize admin's data for demo purposes
+        // Initialize admin's data since it's a fresh setup
         const adminBalances = { btc: 0.1234, eth: 2.5678, usdt: 5120.75 };
         localStorage.setItem(`minerx_balances_${adminUser.id}`, JSON.stringify(adminBalances));
         localStorage.setItem(`minerx_transactions_${adminUser.id}`, JSON.stringify(MOCK_TRANSACTIONS));
         localStorage.setItem(`minerx_hashrate_${adminUser.id}`, '500');
+        needsSave = true;
+    }
+
+    if (needsSave) {
+        saveStoredUsers(users);
     }
   }, []);
 
@@ -126,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const token = `header.${btoa(JSON.stringify(payload))}.signature`;
         localStorage.setItem(TOKEN_KEY, token);
 
-        const { password, ...secureUser } = foundUser;
+        const { password: userPassword, ...secureUser } = foundUser;
         setUser(secureUser);
         return true;
       } else {
@@ -200,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
   }
 
-  const isUserAdmin = useMemo(() => user?.email.toLowerCase() === 'admin', [user]);
+  const isUserAdmin = useMemo(() => user?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase(), [user]);
 
   const value = {
     user,
