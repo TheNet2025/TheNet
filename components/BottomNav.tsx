@@ -18,7 +18,7 @@ const NavItem: React.FC<{label: string, icon: React.ReactNode, isActive: boolean
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activePage, navigateTo, isAdmin }) => {
     return (
-        <div className="absolute bottom-0 left-0 right-0 h-20 bg-card-light/80 dark:bg-secondary/50 backdrop-blur-lg shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_-5px_rgba(0,0,0,0.3)] flex justify-around items-start px-2 rounded-t-[32px] border-t border-white/10">
+        <div className="absolute bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-card-light/80 dark:bg-secondary/50 backdrop-blur-lg shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_-5px_rgba(0,0,0,0.3)] flex justify-around items-start px-2 rounded-t-[32px] border-t border-white/10">
             <NavItem label="Dashboard" icon={<HomeIcon />} isActive={activePage === Page.Dashboard} onClick={() => navigateTo(Page.Dashboard)} />
             <NavItem label="Wallet" icon={<WalletIcon />} isActive={activePage === Page.Wallet} onClick={() => navigateTo(Page.Wallet)} />
             <NavItem label="Chat" icon={<ChatBubbleLeftRightIcon />} isActive={activePage === Page.Chat} onClick={() => navigateTo(Page.Chat)} />

@@ -1,0 +1,21 @@
+{
+  "short_name": "MinerX",
+  "name": "MinerX",
+  "description": "A simulated Android application for cryptocurrency mining and wallet management, built with React and Tailwind CSS. It features a dashboard, wallet functions, transaction history, and user settings with a clean, modern, mobile-first design.",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0A0E1A",
+  "background_color": "#0A0E1A"
+}

@@ -9,7 +9,6 @@ import Admin from './components/Admin';
 import Store from './components/Store';
 import Chat from './components/Chat';
 import { BottomNav } from './components/BottomNav';
-import { StatusBar } from './components/common/StatusBar';
 import TransactionDetailModal from './components/common/TransactionDetailModal';
 import { Page, Theme, Transaction } from './types';
 import { useWalletBalance } from './hooks/useWalletBalance';
@@ -89,15 +88,12 @@ const MainApp: React.FC = () => {
     };
 
     return (
-        <div className="h-screen w-screen bg-background-light dark:bg-background-dark dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,229,255,0.08),rgba(255,255,255,0))] font-sans overflow-hidden flex justify-center items-center">
-            <div className="relative w-[375px] h-[812px] border-4 border-gray-800 rounded-[60px] shadow-2xl shadow-black/50 overflow-hidden bg-background-light dark:bg-background-dark flex flex-col">
-                <StatusBar />
-                <main className="pt-10 flex-1 overflow-y-auto pb-20 scrollbar-hide">
-                    {renderPage()}
-                </main>
-                <BottomNav activePage={activePage} navigateTo={navigateTo} isAdmin={isUserAdmin} />
-                {selectedTx && <TransactionDetailModal tx={selectedTx} onClose={() => setSelectedTx(null)} />}
-            </div>
+        <div className="relative h-screen w-screen bg-background-light dark:bg-background-dark dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,229,255,0.08),rgba(255,255,255,0))] font-sans overflow-hidden flex flex-col">
+            <main className="flex-1 overflow-y-auto scrollbar-hide pt-[env(safe-area-inset-top)] pb-[calc(5rem+env(safe-area-inset-bottom))]">
+                {renderPage()}
+            </main>
+            <BottomNav activePage={activePage} navigateTo={navigateTo} isAdmin={isUserAdmin} />
+            {selectedTx && <TransactionDetailModal tx={selectedTx} onClose={() => setSelectedTx(null)} />}
         </div>
     );
 }
