@@ -17,7 +17,6 @@ interface Rates {
 interface DashboardProps {
   user: User;
   totalUsdValue: number;
-  setBalances: React.Dispatch<React.SetStateAction<Balances>>;
   rates: Rates;
   navigateTo: (page: Page) => void;
 }
@@ -34,9 +33,9 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string, 
 );
 
 
-const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances, rates, navigateTo }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, rates, navigateTo }) => {
     const { isMining, setIsMining, hashrate, estimatedEarnings } = useMining();
-    const { pendingPayout, nextPayoutTime } = usePayouts(hashrate, isMining, setBalances);
+    const { pendingPayout, nextPayoutTime } = usePayouts(hashrate, isMining);
     const feed = useLiveFeed(isMining, hashrate);
 
     const formatTime = (seconds: number) => {

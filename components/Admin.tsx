@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Card from './common/Card';
 import Button from './common/Button';
-import { User, Transaction, TransactionType, TransactionStatus, Balances, KycStatus, Page } from '../types';
+import { User, Transaction, TransactionType, TransactionStatus, Balances, KycStatus } from '../types';
 import { ArrowLeftIcon, BtcIcon, EthIcon, UsdtIcon, DepositIcon, WithdrawIcon, GiftIcon, ShoppingCartIcon, HistoryIcon } from './common/Icons';
-
-const USERS_KEY = 'minerx_users';
-
-// --- Sub-components for Admin Panel ---
+import { useDatabase } from '../hooks/useDatabase';
 
 const KycStatusBadge: React.FC<{ status: KycStatus }> = ({ status }) => {
     const styles = {
@@ -19,13 +16,12 @@ const KycStatusBadge: React.FC<{ status: KycStatus }> = ({ status }) => {
 };
 
 interface AugmentedTransaction extends Transaction {
-  userId: string;
   userEmail: string;
 }
 
 const TransactionApprovalCard: React.FC<{ 
     tx: AugmentedTransaction, 
-    onAction: (tx: AugmentedTransaction, action: 'approve' | 'reject') => void 
+    onAction: (txId: string, action: 'approve' | 'reject') => void 
 }> = ({ tx, onAction }) => (
     <div className="bg-secondary/80 p-3 rounded-lg">
         <div className="flex justify-between items-center">
@@ -38,31 +34,16 @@ const TransactionApprovalCard: React.FC<{
             </p>
         </div>
         <div className="flex justify-end space-x-2 mt-3">
-           <Button onClick={() => onAction(tx, 'approve')} className="!px-4 !py-1.5 !text-xs !bg-success !text-black">Approve</Button>
-           <Button onClick={() => onAction(tx, 'reject')} className="!px-4 !py-1.5 !text-xs !bg-danger">Reject</Button>
+           <Button onClick={() => onAction(tx.id, 'approve')} className="!px-4 !py-1.5 !text-xs !bg-success !text-black">Approve</Button>
+           <Button onClick={() => onAction(tx.id, 'reject')} className="!px-4 !py-1.5 !text-xs !bg-danger">Reject</Button>
         </div>
     </div>
 );
 
-// --- User Detail View Component ---
-
 const UserDetailView: React.FC<{ userId: string; onBack: () => void; }> = ({ userId, onBack }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [balances, setBalances] = useState<Balances>({ btc: 0, eth: 0, usdt: 0 });
-
-    useEffect(() => {
-        const usersJson = localStorage.getItem('minerx_users');
-        const users: User[] = usersJson ? JSON.parse(usersJson) : [];
-        const foundUser = users.find(u => u.id === userId);
-        setUser(foundUser || null);
-
-        const txsJson = localStorage.getItem(`minerx_transactions_${userId}`);
-        setTransactions(txsJson ? JSON.parse(txsJson) : []);
-        
-        const balancesJson = localStorage.getItem(`minerx_balances_${userId}`);
-        setBalances(balancesJson ? JSON.parse(balancesJson) : { btc: 0, eth: 0, usdt: 0 });
-    }, [userId]);
+    const { getUserById, getTransactionsByUserId } = useDatabase();
+    const user = getUserById(userId);
+    const transactions = getTransactionsByUserId(userId);
 
     const coinData: { key: keyof Balances; name: string; icon: React.ReactNode }[] = [
         { key: 'btc', name: 'Bitcoin', icon: <BtcIcon /> },
@@ -112,7 +93,7 @@ const UserDetailView: React.FC<{ userId: string; onBack: () => void; }> = ({ use
                         <div className="w-8 h-8">{icon}</div>
                         <p className="font-semibold text-text-dark">{name}</p>
                     </div>
-                    <p className="font-mono text-text-dark">{balances[key].toFixed(6)}</p>
+                    <p className="font-mono text-text-dark">{user.balances[key].toFixed(6)}</p>
                     </div>
                 ))}
                 </div>
@@ -149,77 +130,39 @@ const UserDetailView: React.FC<{ userId: string; onBack: () => void; }> = ({ use
 };
 
 
-// --- Main Admin Component ---
-
 const Admin: React.FC = () => {
-    const [allUsers, setAllUsers] = useState<User[]>([]);
-    const [pendingDeposits, setPendingDeposits] = useState<AugmentedTransaction[]>([]);
-    const [pendingWithdrawals, setPendingWithdrawals] = useState<AugmentedTransaction[]>([]);
+    const { users, transactions, updateTransactionStatus, getUserById } = useDatabase();
     const [activeTab, setActiveTab] = useState<'deposits' | 'withdrawals' | 'users'>('deposits');
-    const [isLoading, setIsLoading] = useState(true);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-    const loadData = useCallback(() => {
-        setIsLoading(true);
-        const usersJson = localStorage.getItem(USERS_KEY);
-        const users: User[] = usersJson ? JSON.parse(usersJson) : [];
-        setAllUsers(users.filter(u => u.email !== 'admin'));
+    const { pendingDeposits, pendingWithdrawals } = useMemo(() => {
+        const deposits: AugmentedTransaction[] = [];
+        const withdrawals: AugmentedTransaction[] = [];
 
-        const allPendingDeposits: AugmentedTransaction[] = [];
-        const allPendingWithdrawals: AugmentedTransaction[] = [];
-        
-        users.forEach(user => {
-            const txsJson = localStorage.getItem(`minerx_transactions_${user.id}`);
-            const userTxs: Transaction[] = txsJson ? JSON.parse(txsJson) : [];
-            
-            userTxs.forEach(tx => {
-                if (tx.status === TransactionStatus.Pending) {
-                    const augmentedTx = { ...tx, userId: user.id, userEmail: user.email };
+        transactions
+            .filter(tx => tx.status === TransactionStatus.Pending)
+            .forEach(tx => {
+                const user = getUserById(tx.userId);
+                if (user) {
+                    const augmentedTx = { ...tx, userEmail: user.email };
                     if (tx.type === TransactionType.Deposit) {
-                        allPendingDeposits.push(augmentedTx);
+                        deposits.push(augmentedTx);
                     } else if (tx.type === TransactionType.Withdrawal) {
-                        allPendingWithdrawals.push(augmentedTx);
+                        withdrawals.push(augmentedTx);
                     }
                 }
             });
-        });
-        
-        setPendingDeposits(allPendingDeposits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setPendingWithdrawals(allPendingWithdrawals.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setIsLoading(false);
-    }, []);
 
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
-
-    const handleTransactionAction = (txToUpdate: AugmentedTransaction, action: 'approve' | 'reject') => {
-        const { id: txId, userId } = txToUpdate;
-        
-        const TX_KEY = `minerx_transactions_${userId}`;
-        const txsJson = localStorage.getItem(TX_KEY);
-        const transactions: Transaction[] = txsJson ? JSON.parse(txsJson) : [];
-        const txIndex = transactions.findIndex(t => t.id === txId);
-        if (txIndex === -1) return;
-
-        transactions[txIndex].status = action === 'approve' ? TransactionStatus.Completed : TransactionStatus.Failed;
-        localStorage.setItem(TX_KEY, JSON.stringify(transactions));
-
-        const tx = transactions[txIndex];
-        const BAL_KEY = `minerx_balances_${userId}`;
-        const balJson = localStorage.getItem(BAL_KEY);
-        const balances: Balances = balJson ? JSON.parse(balJson) : { btc: 0, eth: 0, usdt: 0 };
-        const currencyKey = tx.currency.toLowerCase() as keyof Balances;
-
-        if (tx.type === TransactionType.Deposit && action === 'approve') {
-            balances[currencyKey] = (balances[currencyKey] || 0) + tx.amount;
-            localStorage.setItem(BAL_KEY, JSON.stringify(balances));
-        } else if (tx.type === TransactionType.Withdrawal && action === 'reject') {
-            balances[currencyKey] = (balances[currencyKey] || 0) + tx.amount;
-            localStorage.setItem(BAL_KEY, JSON.stringify(balances));
-        }
-        
-        loadData(); // Refresh data to update UI
+        return { 
+            pendingDeposits: deposits.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), 
+            pendingWithdrawals: withdrawals.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        };
+    }, [transactions, getUserById]);
+    
+    const allUsers = useMemo(() => users.filter(u => u.email.toLowerCase() !== 'albertonani79@gmail.com'), [users]);
+    
+    const handleTransactionAction = (txId: string, action: 'approve' | 'reject') => {
+        updateTransactionStatus(txId, action === 'approve' ? TransactionStatus.Completed : TransactionStatus.Failed);
     };
 
     if (selectedUserId) {
@@ -261,49 +204,47 @@ const Admin: React.FC = () => {
                 </button>
             </div>
             
-            {isLoading ? <div className="text-center p-10 text-primary">Loading Data...</div> : (
-                <Card>
-                    {activeTab === 'deposits' && (
-                        <>
-                            <h2 className="font-bold text-xl mb-4 text-text-dark">Pending Deposits</h2>
-                            {pendingDeposits.length > 0 ? (
-                                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                                    {pendingDeposits.map(tx => <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />)}
-                                </div>
-                            ) : (<p className="text-text-muted-dark text-center py-8">No pending deposits.</p>)}
-                        </>
-                    )}
-                    
-                    {activeTab === 'withdrawals' && (
-                         <>
-                            <h2 className="font-bold text-xl mb-4 text-text-dark">Pending Withdrawals</h2>
-                            {pendingWithdrawals.length > 0 ? (
-                                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                                    {pendingWithdrawals.map(tx => <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />)}
-                                </div>
-                            ) : (<p className="text-text-muted-dark text-center py-8">No pending withdrawals.</p>)}
-                        </>
-                    )}
+            <Card>
+                {activeTab === 'deposits' && (
+                    <>
+                        <h2 className="font-bold text-xl mb-4 text-text-dark">Pending Deposits</h2>
+                        {pendingDeposits.length > 0 ? (
+                            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                                {pendingDeposits.map(tx => <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />)}
+                            </div>
+                        ) : (<p className="text-text-muted-dark text-center py-8">No pending deposits.</p>)}
+                    </>
+                )}
+                
+                {activeTab === 'withdrawals' && (
+                     <>
+                        <h2 className="font-bold text-xl mb-4 text-text-dark">Pending Withdrawals</h2>
+                        {pendingWithdrawals.length > 0 ? (
+                            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                                {pendingWithdrawals.map(tx => <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />)}
+                            </div>
+                        ) : (<p className="text-text-muted-dark text-center py-8">No pending withdrawals.</p>)}
+                    </>
+                )}
 
-                    {activeTab === 'users' && (
-                        <>
-                            <h2 className="font-bold text-xl mb-4 text-text-dark">User Management ({allUsers.length})</h2>
-                             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                                {allUsers.map(user => (
-                                    <div key={user.id} onClick={() => setSelectedUserId(user.id)} className="flex items-center space-x-4 bg-secondary/80 p-3 rounded-lg cursor-pointer hover:bg-white/10 transition-colors">
-                                        <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full object-cover" />
-                                        <div className="flex-1">
-                                            <p className="font-bold text-text-dark">{user.username}</p>
-                                            <p className="text-sm text-text-muted-dark">{user.email}</p>
-                                        </div>
-                                        <KycStatusBadge status={user.kycStatus} />
+                {activeTab === 'users' && (
+                    <>
+                        <h2 className="font-bold text-xl mb-4 text-text-dark">User Management ({allUsers.length})</h2>
+                         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                            {allUsers.map(user => (
+                                <div key={user.id} onClick={() => setSelectedUserId(user.id)} className="flex items-center space-x-4 bg-secondary/80 p-3 rounded-lg cursor-pointer hover:bg-white/10 transition-colors">
+                                    <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full object-cover" />
+                                    <div className="flex-1">
+                                        <p className="font-bold text-text-dark">{user.username}</p>
+                                        <p className="text-sm text-text-muted-dark">{user.email}</p>
                                     </div>
-                                ))}
-                             </div>
-                        </>
-                    )}
-                </Card>
-            )}
+                                    <KycStatusBadge status={user.kycStatus} />
+                                </div>
+                            ))}
+                         </div>
+                    </>
+                )}
+            </Card>
         </div>
     );
 };

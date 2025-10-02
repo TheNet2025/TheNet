@@ -1,14 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Balances } from '../types';
+import { useMemo } from 'react';
 import { useAuth } from './useAuth';
+import { useDatabase } from './useDatabase';
 
-const ZERO_BALANCES: Balances = {
-    btc: 0,
-    eth: 0,
-    usdt: 0,
-};
-
-// Using static rates for a stable simulation, as live API calls can be blocked.
 const STATIC_RATES = {
     btc: 65000,
     eth: 3500,
@@ -17,29 +10,21 @@ const STATIC_RATES = {
 
 export const useWalletBalance = () => {
     const { user } = useAuth();
-    const [balances, setBalances] = useState<Balances>(ZERO_BALANCES);
-    const [rates] = useState(STATIC_RATES);
+    const { getUserById, updateUser } = useDatabase();
 
-    useEffect(() => {
-        if (user) {
-            const BALANCE_KEY = `minerx_balances_${user.id}`;
-            const storedBalances = localStorage.getItem(BALANCE_KEY);
-            setBalances(storedBalances ? JSON.parse(storedBalances) : ZERO_BALANCES);
-        } else {
-            setBalances(ZERO_BALANCES);
+    const currentUser = user ? getUserById(user.id) : null;
+    const balances = currentUser?.balances || { btc: 0, eth: 0, usdt: 0 };
+    
+    const setBalances = (newBalances: React.SetStateAction<typeof balances>) => {
+        if (currentUser) {
+            const updatedBalances = typeof newBalances === 'function' ? newBalances(currentUser.balances) : newBalances;
+            updateUser({ ...currentUser, balances: updatedBalances });
         }
-    }, [user]);
-
-    useEffect(() => {
-        if (user) {
-            const BALANCE_KEY = `minerx_balances_${user.id}`;
-            localStorage.setItem(BALANCE_KEY, JSON.stringify(balances));
-        }
-    }, [balances, user]);
+    };
     
     const totalUsdValue = useMemo(() => {
-        return (balances.btc * rates.btc) + (balances.eth * rates.eth) + (balances.usdt * rates.usdt);
-    }, [balances, rates]);
+        return (balances.btc * STATIC_RATES.btc) + (balances.eth * STATIC_RATES.eth) + (balances.usdt * STATIC_RATES.usdt);
+    }, [balances]);
 
-    return { balances, setBalances, rates, totalUsdValue };
+    return { balances, setBalances, rates: STATIC_RATES, totalUsdValue };
 };

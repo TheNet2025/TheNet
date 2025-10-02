@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Balances, Transaction, TransactionStatus, TransactionType } from '../types';
 import { useAuth } from './useAuth';
+import { useDatabase } from './useDatabase';
 
 const MOCK_BTC_EARNING_RATE = 0.00000000005; // BTC per GH/s per second
 const PAYOUT_INTERVAL_SECONDS = 180; // 3 minutes
@@ -9,9 +10,9 @@ const PAYOUT_CONFIRMATION_SECONDS = 10; // 10 seconds to confirm
 export const usePayouts = (
   hashrate: number,
   isMining: boolean,
-  setBalances: React.Dispatch<React.SetStateAction<Balances>>
 ) => {
   const { user } = useAuth();
+  const { addTransaction, updateTransactionStatus } = useDatabase();
   const [pendingPayout, setPendingPayout] = useState(0);
   const [nextPayoutTime, setNextPayoutTime] = useState(PAYOUT_INTERVAL_SECONDS);
 
@@ -24,36 +25,28 @@ export const usePayouts = (
     const payoutAmount = pendingPayout;
     setPendingPayout(0);
     
-    const payoutId = `payout_${Date.now()}`;
-    const newTx: Transaction = {
-        id: payoutId,
+    const newTx: Omit<Transaction, 'id' | 'date' | 'status'> = {
+        userId: user.id,
         type: TransactionType.Payout,
-        status: TransactionStatus.Pending,
         amount: payoutAmount,
         currency: 'BTC',
-        date: new Date().toISOString().slice(0, 16).replace('T', ' '),
         address: 'MinerX Pool',
         payoutCycleId: `cycle-${Math.floor(Date.now() / (PAYOUT_INTERVAL_SECONDS * 1000))}`,
         txHash: `0x${[...Array(64)].map(() => Math.floor(Math.random() * 16).toString(16)).join('')}`,
         confirmations: 0,
     };
     
-    const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
-    const existingTxs = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
-    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify([newTx, ...existingTxs]));
-    window.dispatchEvent(new Event('transactions_updated'));
-
-    // Simulate confirmation delay
+    addTransaction(newTx);
+    
+    // The transaction ID is generated inside addTransaction, so we can't know it here.
+    // This is a limitation of the simulation. A real backend would return the new TX.
+    // We'll simulate confirmation by finding the latest pending payout for this user.
     setTimeout(() => {
-        setBalances(prev => ({ ...prev, btc: prev.btc + payoutAmount }));
-
-        const currentTxs: Transaction[] = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
-        const txIndex = currentTxs.findIndex(t => t.id === payoutId);
-        if (txIndex !== -1) {
-            currentTxs[txIndex].status = TransactionStatus.Completed;
-            currentTxs[txIndex].confirmations = Math.floor(Math.random() * 20) + 6;
-            localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(currentTxs));
-            window.dispatchEvent(new Event('transactions_updated'));
+        const userTxs = JSON.parse(localStorage.getItem('minerx_db_transactions') || '[]') as Transaction[];
+        const latestPayout = userTxs.find(tx => tx.userId === user.id && tx.type === TransactionType.Payout && tx.status === TransactionStatus.Pending);
+        
+        if (latestPayout) {
+            updateTransactionStatus(latestPayout.id, TransactionStatus.Completed);
         }
     }, PAYOUT_CONFIRMATION_SECONDS * 1000);
   };

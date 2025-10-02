@@ -1,9 +1,12 @@
 
+
 import { Transaction, TransactionStatus, TransactionType, Plan } from './types';
 
 export const MOCK_TRANSACTIONS: Transaction[] = [
   {
     id: 'tx123456',
+    // FIX: Added missing userId property.
+    userId: 'user_admin',
     type: TransactionType.Withdrawal,
     status: TransactionStatus.Completed,
     amount: 0.534,
@@ -13,6 +16,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
   },
   {
     id: 'tx789012',
+    // FIX: Added missing userId property.
+    userId: 'user_admin',
     type: TransactionType.Deposit,
     status: TransactionStatus.Completed,
     amount: 1.2,
@@ -22,6 +27,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
   },
   {
     id: 'tx345678',
+    // FIX: Added missing userId property.
+    userId: 'user_admin',
     type: TransactionType.Withdrawal,
     status: TransactionStatus.Pending,
     amount: 10.8,
@@ -31,6 +38,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
   },
   {
     id: 'tx901234',
+    // FIX: Added missing userId property.
+    userId: 'user_admin',
     type: TransactionType.Withdrawal,
     status: TransactionStatus.Failed,
     amount: 0.1,
@@ -40,6 +49,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
   },
    {
     id: 'tx567890',
+    // FIX: Added missing userId property.
+    userId: 'user_admin',
     type: TransactionType.Deposit,
     status: TransactionStatus.Completed,
     amount: 2500,

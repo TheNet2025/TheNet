@@ -12,10 +12,11 @@ import {
 import TwoFactorAuthModal from './common/TwoFactorAuthModal';
 import KycModal from './common/KycModal';
 import { useAuth } from '../hooks/useAuth';
+import { useDatabase } from '../hooks/useDatabase';
 
 interface SettingsProps {
   user: User;
-  setUser: (user: User) => void;
+  setUser: (user: User) => void; // This comes from useAuth, still needed to update auth context
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
@@ -63,7 +64,8 @@ const KycStatusIndicator: React.FC<{ status: KycStatus }> = ({ status }) => {
 
 const Settings: React.FC<SettingsProps> = ({ user, setUser, theme, setTheme }) => {
     const { logout } = useAuth();
-    // Profile editing state
+    const { updateUser } = useDatabase();
+    
     const [isProfileExpanded, setIsProfileExpanded] = useState(false);
     const [editedUsername, setEditedUsername] = useState(user.username);
     const [editedEmail, setEditedEmail] = useState(user.email);
@@ -71,15 +73,12 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser, theme, setTheme }) =
     const [isKycModalOpen, setIsKycModalOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     
-    // General settings state
     const [notifications, setNotifications] = useState(true);
     const [isTwoFactorEnabled, setIsTwoFactorEnabled] = useState(() => {
         return localStorage.getItem('minerx_2fa_enabled') === 'true';
     });
     const [is2faModalOpen, setIs2faModalOpen] = useState(false);
-    const [biometric, setBiometric] = useState(true);
 
-    // Reset form when user prop changes (e.g., after save)
     useEffect(() => {
         setEditedUsername(user.username);
         setEditedEmail(user.email);
@@ -103,7 +102,9 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser, theme, setTheme }) =
     const triggerFileSelect = () => fileInputRef.current?.click();
 
     const handleProfileSave = () => {
-        setUser({ ...user, username: editedUsername, email: editedEmail, avatar: editedAvatar });
+        const updatedUserData = { ...user, username: editedUsername, email: editedEmail, avatar: editedAvatar };
+        updateUser(updatedUserData); // Update in database
+        setUser(updatedUserData); // Update in auth context
         setIsProfileExpanded(false);
     };
     
@@ -115,7 +116,9 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser, theme, setTheme }) =
     }
     
     const handleKycSubmit = () => {
-        setUser({ ...user, kycStatus: KycStatus.Pending });
+        const updatedUserData = { ...user, kycStatus: KycStatus.Pending };
+        updateUser(updatedUserData);
+        setUser(updatedUserData);
         setIsKycModalOpen(false);
     };
 

@@ -15,6 +15,7 @@ export enum TransactionStatus {
 
 export interface Transaction {
   id: string;
+  userId: string; // Added to associate transaction with a user
   type: TransactionType;
   status: TransactionStatus;
   amount: number;
@@ -43,6 +44,8 @@ export interface User {
   password?: string; // Hashed password
   isVerified: boolean;
   verificationToken?: string;
+  balances: Balances;
+  hashrate: number;
 }
 
 export enum Theme {

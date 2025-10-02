@@ -11,12 +11,14 @@ import Chat from './components/Chat';
 import { BottomNav } from './components/BottomNav';
 import { StatusBar } from './components/common/StatusBar';
 import TransactionDetailModal from './components/common/TransactionDetailModal';
-import { Page, Theme, User, Transaction } from './types';
+import { Page, Theme, Transaction } from './types';
 import { useWalletBalance } from './hooks/useWalletBalance';
 import { useAuth } from './hooks/useAuth';
+import { useDatabase } from './hooks/useDatabase';
 
 const MainApp: React.FC = () => {
     const { user, isUserAdmin, setUser } = useAuth();
+    const { getTransactionsByUserId } = useDatabase();
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('minerx_theme') as Theme) || Theme.Dark);
     const [activePage, setActivePage] = useState<Page>(Page.Dashboard);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -24,17 +26,13 @@ const MainApp: React.FC = () => {
     const { balances, setBalances, rates, totalUsdValue } = useWalletBalance();
 
     const navigateTo = (page: Page) => {
-        // Enforce access control: only admins can navigate to the Admin page.
         if (page === Page.Admin && !isUserAdmin) {
-            // This is a safeguard. If a non-admin somehow tries to go to the admin page,
-            // send them to their dashboard instead.
             setActivePage(Page.Dashboard);
             return;
         }
         setActivePage(page);
     };
 
-    // On login, this effect correctly redirects the user to their default page.
      useEffect(() => {
         if (isUserAdmin) {
             setActivePage(Page.Admin);
@@ -47,68 +45,46 @@ const MainApp: React.FC = () => {
         document.documentElement.className = theme;
         localStorage.setItem('minerx_theme', theme);
     }, [theme]);
-
-    useEffect(() => {
-        if (user) {
-            const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
-            const storedTxs = localStorage.getItem(TRANSACTIONS_KEY);
-            setTransactions(storedTxs ? JSON.parse(storedTxs) : []);
-        } else {
-            setTransactions([]); // Clear on logout
+    
+    const refreshTransactions = () => {
+        if(user) {
+            setTransactions(getTransactionsByUserId(user.id));
         }
-    }, [user]);
-
-
+    };
+    
+    // Load initial transactions and listen for updates
     useEffect(() => {
-        const handleThemeUpdate = (event: Event) => setTheme((event as CustomEvent<Theme>).detail);
-        const handleTxsUpdate = () => {
-             if (user) {
-                const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
-                setTransactions(JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]'));
-            }
-        };
-        
-        window.addEventListener('admin_theme_update', handleThemeUpdate);
-        window.addEventListener('transactions_updated', handleTxsUpdate);
+        refreshTransactions();
+        window.addEventListener('db_updated', refreshTransactions);
+        return () => window.removeEventListener('db_updated', refreshTransactions);
+    }, [user, getTransactionsByUserId]);
 
-        return () => {
-            window.removeEventListener('admin_theme_update', handleThemeUpdate);
-            window.removeEventListener('transactions_updated', handleTxsUpdate);
-        };
-    }, [user]);
     
     const renderPage = () => {
         if (!user) return null;
 
-        // Securely handle rendering for the Admin page.
-        // This is the single entry point for the Admin component.
         if (activePage === Page.Admin) {
-            // Only render Admin component if the user is actually an admin.
             if (isUserAdmin) {
                 return <Admin />;
             }
-            // As a fallback, if a non-admin's state is somehow set to the admin page,
-            // show them their dashboard instead of a blank or broken page.
-            return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
+            return <Dashboard user={user} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
         }
 
-        // Render standard pages
         switch (activePage) {
             case Page.Dashboard:
-                return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
+                return <Dashboard user={user} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
             case Page.Wallet:
                 return <Wallet balances={balances} setBalances={setBalances} rates={rates} />;
             case Page.Chat:
                 return <Chat />;
             case Page.Store:
-                return <Store navigateTo={navigateTo} balances={balances} setBalances={setBalances} />;
+                return <Store navigateTo={navigateTo} />;
             case Page.History:
                 return <History transactions={transactions} onSelectTx={setSelectedTx} />;
             case Page.Settings:
                 return <Settings user={user} setUser={setUser} theme={theme} setTheme={setTheme} />;
             default:
-                // Default to dashboard for any unknown page state
-                return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
+                return <Dashboard user={user} totalUsdValue={totalUsdValue} rates={rates} navigateTo={navigateTo} />;
         }
     };
 
@@ -135,7 +111,6 @@ function App() {
     }
 
     if (!isAuthenticated) {
-        // Standard user authentication
         switch (authScreen) {
             case 'signup':
                 return <SignUp onSwitchToLogin={() => setAuthScreen('login')} />;

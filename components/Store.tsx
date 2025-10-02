@@ -1,69 +1,65 @@
 import React, { useState } from 'react';
-import { Page, Plan, Transaction, TransactionType, TransactionStatus, Balances } from '../types';
+import { Page, Plan, TransactionType, Balances } from '../types';
 import Card from './common/Card';
 import Button from './common/Button';
 import { MOCK_PLANS } from '../constants';
 import { CheckCircleIcon } from './common/Icons';
 import PurchaseModal from './common/PurchaseModal';
 import { useAuth } from '../hooks/useAuth';
+import { useDatabase } from '../hooks/useDatabase';
+import { useWalletBalance } from '../hooks/useWalletBalance';
 
 interface StoreProps {
   navigateTo: (page: Page) => void;
-  balances: Balances;
-  setBalances: React.Dispatch<React.SetStateAction<Balances>>;
 }
 
-const Store: React.FC<StoreProps> = ({ navigateTo, balances, setBalances }) => {
+const Store: React.FC<StoreProps> = ({ navigateTo }) => {
     const { user } = useAuth();
+    const { updateUser, addTransaction, getUserById } = useDatabase();
+    const { balances, setBalances } = useWalletBalance();
+
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
     const [modalState, setModalState] = useState<'hidden' | 'confirm' | 'insufficient_funds'>('hidden');
+    
+    const currentUser = user ? getUserById(user.id) : null;
 
     const handleAttemptPurchase = (plan: Plan) => {
+        if (!currentUser) return;
         setSelectedPlan(plan);
-        if (balances.usdt >= plan.price) {
+        if (currentUser.balances.usdt >= plan.price) {
             setModalState('confirm');
         } else {
             setModalState('insufficient_funds');
         }
     };
     
-    // Simulates an atomic, idempotent purchase operation
     const handleConfirmPurchase = () => {
-        if (!selectedPlan || !user || balances.usdt < selectedPlan.price) {
-             // Close modal and reset state if conditions are no longer met
+        if (!selectedPlan || !currentUser || currentUser.balances.usdt < selectedPlan.price) {
             setModalState('hidden');
             setSelectedPlan(null);
             return;
         };
 
-        // 1. Atomically deduct balance (simulated)
-        setBalances(prev => ({...prev, usdt: prev.usdt - selectedPlan.price }));
-
-        // 2. Create an immutable ledger entry (order record)
-        const newTx: Transaction = {
-            id: `tx_pur_${Date.now()}`,
+        // 1. Atomically deduct balance
+        const newBalances = { ...currentUser.balances, usdt: currentUser.balances.usdt - selectedPlan.price };
+        
+        // 2. Provision the service (update hashrate)
+        const newHashrate = currentUser.hashrate + selectedPlan.hashrate;
+        
+        // 3. Update the user object in the database
+        updateUser({ ...currentUser, balances: newBalances, hashrate: newHashrate });
+        
+        // 4. Create an immutable ledger entry (order record)
+        addTransaction({
+            userId: currentUser.id,
             type: TransactionType.Purchase,
-            status: TransactionStatus.Completed,
             amount: selectedPlan.price,
             currency: 'USDT',
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
             address: 'MinerX Store',
             details: `Purchase of ${selectedPlan.name}`
-        };
-        
-        const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
-        const existingTxs = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
-        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify([newTx, ...existingTxs]));
-        window.dispatchEvent(new Event('transactions_updated'));
+        });
 
-        // 3. Provision the service (update hashrate)
-        const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
-        const currentHashrate = parseFloat(localStorage.getItem(HASHRATE_KEY) || '0');
-        const newHashrate = currentHashrate + selectedPlan.hashrate;
-        localStorage.setItem(HASHRATE_KEY, newHashrate.toString());
-        window.dispatchEvent(new Event('hashpower_updated'));
-
-        // 4. Close modal and navigate
+        // 5. Close modal and navigate
         setModalState('hidden');
         setSelectedPlan(null);
         navigateTo(Page.Dashboard);

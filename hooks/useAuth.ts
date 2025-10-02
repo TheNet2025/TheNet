@@ -1,24 +1,9 @@
 import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
-import { User, KycStatus, Transaction } from '../types';
-import { MOCK_TRANSACTIONS } from '../constants';
+import { User, KycStatus } from '../types';
+import { useDatabase } from './useDatabase';
 
-
-// --- Simulation Note ---
-// This file simulates a complete authentication system on the client-side.
-// In a real-world application, these operations (user storage, password hashing,
-// token generation) would be handled by a secure backend server.
-
-// --- Constants for Admin credentials ---
-const ADMIN_EMAIL = 'albertonani79@gmail.com';
-const ADMIN_PASSWORD = 'Planetwin365@';
-
-// In a real app, the token would be a secure, HttpOnly cookie.
-// localStorage is used here for simulation purposes.
 const TOKEN_KEY = 'minerx_session_token';
-
-// This simulates a user database. In a real app, this would be a secure database
-// like PostgreSQL or MongoDB on the server.
-const USERS_KEY = 'minerx_users';
+const ADMIN_EMAIL = 'albertonani79@gmail.com';
 
 interface AuthContextType {
   user: User | null;
@@ -35,76 +20,21 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const db = useDatabase();
 
-  const getStoredUsers = (): User[] => {
-    const usersJson = localStorage.getItem(USERS_KEY);
-    return usersJson ? JSON.parse(usersJson) : [];
-  };
-
-  const saveStoredUsers = (users: User[]) => {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  const setUser = (user: User | null) => {
+      if(user) {
+        const { password, ...secureUser } = user;
+        setUserState(secureUser);
+      } else {
+        setUserState(null);
+      }
   };
   
-  // --- Initialize Admin User & Data ---
-  // This effect ensures the admin user (with the correct credentials) and their mock data exist on first load.
-  useEffect(() => {
-    let users = getStoredUsers();
-    const newAdminEmail = ADMIN_EMAIL.toLowerCase();
-    const oldAdminEmail = 'admin';
-
-    const newAdminIndex = users.findIndex(u => u.email.toLowerCase() === newAdminEmail);
-    const oldAdminIndex = users.findIndex(u => u.email.toLowerCase() === oldAdminEmail);
-
-    let adminUser: User | null = null;
-    let needsSave = false;
-
-    if (newAdminIndex > -1) {
-        // New admin already exists, just ensure password is correct
-        adminUser = users[newAdminIndex];
-        const correctPasswordHash = btoa(ADMIN_PASSWORD);
-        if (adminUser.password !== correctPasswordHash) {
-            adminUser.password = correctPasswordHash;
-            needsSave = true;
-        }
-    } else if (oldAdminIndex > -1) {
-        // Old admin exists, let's migrate it to the new credentials to preserve data
-        adminUser = users[oldAdminIndex];
-        adminUser.email = ADMIN_EMAIL;
-        adminUser.password = btoa(ADMIN_PASSWORD);
-        adminUser.avatar = `https://i.pravatar.cc/150?u=${ADMIN_EMAIL}`;
-        needsSave = true;
-    } else {
-        // Neither exists, create a new admin user from scratch
-        const adminPasswordHash = btoa(ADMIN_PASSWORD); 
-        adminUser = {
-            id: 'user_admin', // Keep a consistent ID for the admin user
-            username: 'Admin',
-            email: ADMIN_EMAIL, 
-            password: adminPasswordHash,
-            avatar: `https://i.pravatar.cc/150?u=${ADMIN_EMAIL}`,
-            kycStatus: KycStatus.Verified,
-            isVerified: true,
-        };
-        users.push(adminUser);
-        
-        // Initialize admin's data since it's a fresh setup
-        const adminBalances = { btc: 0.1234, eth: 2.5678, usdt: 5120.75 };
-        localStorage.setItem(`minerx_balances_${adminUser.id}`, JSON.stringify(adminBalances));
-        localStorage.setItem(`minerx_transactions_${adminUser.id}`, JSON.stringify(MOCK_TRANSACTIONS));
-        localStorage.setItem(`minerx_hashrate_${adminUser.id}`, '500');
-        needsSave = true;
-    }
-
-    if (needsSave) {
-        saveStoredUsers(users);
-    }
-  }, []);
-
-  // --- Session Check ---
-  // On initial app load, this checks if a valid session token exists.
+  // Session Check
   useEffect(() => {
     const checkSession = () => {
       try {
@@ -112,12 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (token) {
           const decodedToken = JSON.parse(atob(token.split('.')[1]));
           if (decodedToken.exp * 1000 > Date.now()) {
-            const users = getStoredUsers();
-            const loggedInUser = users.find(u => u.id === decodedToken.sub);
-            if (loggedInUser) {
-              const { password, ...secureUser } = loggedInUser;
-              setUser(secureUser);
-            }
+            const loggedInUser = db.getUserById(decodedToken.sub);
+            if (loggedInUser) setUser(loggedInUser);
           } else {
             logout();
           }
@@ -130,23 +56,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     checkSession();
-  }, []);
+  }, [db]);
 
-  // Simulates a /login endpoint.
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
       await new Promise(res => setTimeout(res, 500)); 
-
-      const users = getStoredUsers();
-      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      
+      const foundUser = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
       if (!foundUser) {
         setError("Invalid email or password.");
         return false;
       }
-      
       if (!foundUser.isVerified) {
           setError("Please verify your email before logging in.");
           return false;
@@ -158,9 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const payload = { sub: foundUser.id, email: foundUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
         const token = `header.${btoa(JSON.stringify(payload))}.signature`;
         localStorage.setItem(TOKEN_KEY, token);
-
-        const { password: userPassword, ...secureUser } = foundUser;
-        setUser(secureUser);
+        setUser(foundUser);
         return true;
       } else {
         setError("Invalid email or password.");
@@ -171,20 +92,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Simulates a /register endpoint.
   const register = async (username: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
       await new Promise(res => setTimeout(res, 500));
-      const users = getStoredUsers();
-      if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+      if (db.users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
         setError("An account with this email already exists.");
         return false;
       }
 
       const hashedPassword = btoa(password);
-
       const newUser: User = {
         id: `user_${Date.now()}`,
         username,
@@ -193,22 +111,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatar: `https://i.pravatar.cc/150?u=${email}`,
         kycStatus: KycStatus.NotVerified,
         isVerified: true,
+        balances: { btc: 0, eth: 0, usdt: 0 },
+        hashrate: 0,
       };
 
-      saveStoredUsers([...users, newUser]);
-
-      // Initialize empty data stores for the new user
-      localStorage.setItem(`minerx_balances_${newUser.id}`, JSON.stringify({ btc: 0, eth: 0, usdt: 0 }));
-      localStorage.setItem(`minerx_transactions_${newUser.id}`, JSON.stringify([]));
-      localStorage.setItem(`minerx_hashrate_${newUser.id}`, '0');
+      // Use the centralized database function to add the new user
+      db.addUser(newUser);
       
       // Automatically log the user in
       const payload = { sub: newUser.id, email: newUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) };
       const token = `header.${btoa(JSON.stringify(payload))}.signature`;
       localStorage.setItem(TOKEN_KEY, token);
-
-      const { password: newUserPassword, ...secureUser } = newUser;
-      setUser(secureUser);
+      setUser(newUser);
       
       return true;
 
@@ -223,14 +137,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const updateUser = (updatedUser: User) => {
+      db.updateUser(updatedUser);
       setUser(updatedUser);
-      const users = getStoredUsers();
-      const userIndex = users.findIndex(u => u.id === updatedUser.id);
-      if (userIndex !== -1) {
-          const storedPassword = users[userIndex].password;
-          users[userIndex] = { ...updatedUser, password: storedPassword };
-          saveStoredUsers(users);
-      }
   }
 
   const isUserAdmin = useMemo(() => user?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase(), [user]);
@@ -247,7 +155,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser: updateUser,
   };
 
-  return React.createElement(AuthContext.Provider, { value: value }, children);
+  // FIX: Replaced JSX with React.createElement to support .ts file extension.
+  return React.createElement(AuthContext.Provider, { value }, children);
 };
 
 export const useAuth = () => {

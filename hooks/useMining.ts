@@ -1,72 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { useWalletBalance } from './useWalletBalance';
 import { useAuth } from './useAuth';
+import { useDatabase } from './useDatabase';
 
 const MOCK_BTC_EARNING_RATE = 0.00000000005; // BTC per GH/s per second
 
 export const useMining = () => {
   const { user } = useAuth();
-  const [hashrate, setHashrate] = useState(0);
+  const { getUserById, updateUser } = useDatabase();
+  const currentUser = user ? getUserById(user.id) : null;
+  
+  const hashrate = currentUser?.hashrate || 0;
   const [isMining, setIsMining] = useState(false);
   const [estimatedEarnings, setEstimatedEarnings] = useState(0);
   const { rates } = useWalletBalance();
   
   useEffect(() => {
-      if (user) {
-          const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
-          const newHashrate = parseFloat(localStorage.getItem(HASHRATE_KEY) || '0');
-          setHashrate(newHashrate);
-          setIsMining(newHashrate > 0);
-      } else {
-          setHashrate(0);
-          setIsMining(false);
-      }
-  }, [user]);
+    setIsMining(hashrate > 0);
+  }, [hashrate]);
 
   useEffect(() => {
     const dailyEarningsInBtc = (hashrate * MOCK_BTC_EARNING_RATE) * 60 * 60 * 24;
     const btcPrice = rates.btc;
     setEstimatedEarnings(dailyEarningsInBtc * btcPrice);
   }, [hashrate, rates.btc]);
-
+  
+  // This effect listens for external hashrate updates (e.g., from the Store)
+  // The 'db_updated' event signals that we should re-check the user's hashrate
   useEffect(() => {
-    const handleMiningControl = (event: Event) => {
-      const { action, value } = (event as CustomEvent<{action: 'start' | 'stop' | 'set_hashrate', value?: number}>).detail;
-      switch (action) {
-        case 'start':
-          if (hashrate > 0) setIsMining(true);
-          break;
-        case 'stop':
-          setIsMining(false);
-          break;
-        case 'set_hashrate':
-          if (typeof value === 'number' && user) {
-            const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
-            setHashrate(value);
-            localStorage.setItem(HASHRATE_KEY, value.toString());
-          }
-          break;
-      }
-    };
-    
-    const handleHashpowerUpdate = () => {
+    const handleDbUpdate = () => {
       if (user) {
-          const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
-          const newHashrate = parseFloat(localStorage.getItem(HASHRATE_KEY) || '0');
-          setHashrate(newHashrate);
-          if (newHashrate > 0 && !isMining) {
-              setIsMining(true);
-          }
+        const freshUser = getUserById(user.id);
+        if (freshUser && freshUser.hashrate > 0) {
+          setIsMining(true);
+        }
       }
     };
+    window.addEventListener('db_updated', handleDbUpdate);
+    return () => window.removeEventListener('db_updated', handleDbUpdate);
+  }, [user, getUserById]);
 
-    window.addEventListener('admin_mining_control', handleMiningControl);
-    window.addEventListener('hashpower_updated', handleHashpowerUpdate);
-    return () => {
-        window.removeEventListener('admin_mining_control', handleMiningControl);
-        window.removeEventListener('hashpower_updated', handleHashpowerUpdate);
-    };
-  }, [hashrate, isMining, user]);
 
   return { isMining, setIsMining, hashrate, estimatedEarnings };
 };

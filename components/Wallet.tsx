@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Card from './common/Card';
 import Button from './common/Button';
 import Input from './common/Input';
 import { BtcIcon, EthIcon, UsdtIcon, CheckCircleIcon, CopyIcon } from './common/Icons';
-import { Transaction, TransactionStatus, TransactionType, Balances, User } from '../types';
+import { Transaction, TransactionType, Balances } from '../types';
 import { useAuth } from '../hooks/useAuth';
+import { useDatabase } from '../hooks/useDatabase';
 
 const COINS = {
     USDT: { name: 'Tether (TRC20)', address: 'TCN8mSR9UVH57kYjbP1wfLPAg88WqJxmG7', icon: <UsdtIcon />, minWithdraw: 50 },
@@ -20,6 +21,7 @@ interface Rates {
 
 const DepositView: React.FC<{}> = () => {
     const { user } = useAuth();
+    const { addTransaction } = useDatabase();
     const [selectedCoin, setSelectedCoin] = useState<Coin>('USDT');
     const [copied, setCopied] = useState(false);
     const [amount, setAmount] = useState('');
@@ -44,20 +46,13 @@ const DepositView: React.FC<{}> = () => {
             return;
         }
 
-        const newTx: Transaction = {
-            id: `tx_dep_${Date.now()}`,
+        addTransaction({
+            userId: user.id,
             type: TransactionType.Deposit,
-            status: TransactionStatus.Pending,
             amount: amountNum,
             currency: selectedCoin,
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
             address: 'user_deposit_request',
-        };
-        const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
-        const existingTxs: Transaction[] = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
-        const updatedTxs = [newTx, ...existingTxs];
-        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTxs));
-        window.dispatchEvent(new Event('transactions_updated'));
+        });
 
         setSubmitted(true);
         setTimeout(() => {
@@ -132,8 +127,9 @@ const DepositView: React.FC<{}> = () => {
     );
 };
 
-const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>>; rates: Rates; }> = ({ balances, setBalances, rates }) => {
+const WithdrawView: React.FC<{ balances: Balances; setBalances: (balances: Balances) => void; rates: Rates; }> = ({ balances, setBalances, rates }) => {
     const { user } = useAuth();
+    const { addTransaction } = useDatabase();
     const [selectedCoin, setSelectedCoin] = useState<Coin>('BTC');
     const [address, setAddress] = useState('');
     const [amount, setAmount] = useState('');
@@ -162,24 +158,18 @@ const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<R
         }
         
         // 1. Debit Balance (Hold funds)
-        setBalances(prev => ({...prev, [selectedCoin.toLowerCase()]: prev[selectedCoin.toLowerCase() as keyof Balances] - amountNum}));
+        const newBalances = { ...balances };
+        newBalances[selectedCoin.toLowerCase() as keyof Balances] -= amountNum;
+        setBalances(newBalances);
         
         // 2. Create PENDING Transaction
-        const newTx: Transaction = {
-            id: `tx_wd_${Date.now()}`,
+        addTransaction({
+            userId: user.id,
             type: TransactionType.Withdrawal,
-            status: TransactionStatus.Pending,
             amount: amountNum,
             currency: selectedCoin,
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
             address: address.slice(0, 12) + '...',
-        };
-        
-        const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
-        const existingTxs: Transaction[] = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
-        const updatedTxs = [newTx, ...existingTxs];
-        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTxs));
-        window.dispatchEvent(new Event('transactions_updated'));
+        });
         
         setSubmitted(true);
 
@@ -245,7 +235,7 @@ const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<R
 };
 
 
-const Wallet: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>>; rates: Rates; }> = ({ balances, setBalances, rates }) => {
+const Wallet: React.FC<{ balances: Balances; setBalances: (balances: Balances) => void; rates: Rates; }> = ({ balances, setBalances, rates }) => {
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
   const coinData: { key: keyof Balances; name: string; icon: React.ReactNode }[] = [
     { key: 'btc', name: 'Bitcoin', icon: <BtcIcon /> },
