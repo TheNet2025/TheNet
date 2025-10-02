@@ -14,7 +14,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (username: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  verifyEmail: (code: string) => Promise<boolean>;
   setUser: (user: User) => void;
 }
 
@@ -142,7 +141,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Simulate hashing the password. A real backend would use bcrypt.
       const hashedPassword = btoa(password);
-      const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
 
       const newUser: User = {
         id: `user_${Date.now()}`,
@@ -151,52 +149,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password: hashedPassword,
         avatar: `https://i.pravatar.cc/150?u=${email}`,
         kycStatus: KycStatus.NotVerified,
-        isVerified: false,
-        verificationToken,
+        isVerified: true, // User is automatically verified upon registration
       };
 
       saveStoredUsers([...users, newUser]);
       
-      // Handle email verification based on environment
-      if (process.env.NODE_ENV !== 'production') {
-          // In development, log the code to the console for easy access.
-          console.log(`--- DEV EMAIL VERIFICATION ---`);
-          console.log(`To: ${email}`);
-          console.log(`Your verification code is: ${verificationToken}`);
-          console.log(`------------------------------`);
-      } else {
-          // In production, a real email would be sent.
-          // We'll simulate this with a log entry without exposing the token.
-          console.log(`PRODUCTION: An email verification code has been sent to ${email}.`);
-          // TODO: Implement actual email sending service here (e.g., SendGrid, Mailgun).
-      }
+      // Automatically log the user in after registration
+      const payload = { sub: newUser.id, email: newUser.email, exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) }; // 24h expiry
+      const token = `header.${btoa(JSON.stringify(payload))}.signature`;
+      localStorage.setItem(TOKEN_KEY, token);
+
+      const { password: newUserPassword, ...secureUser } = newUser;
+      setUser(secureUser);
       
       return true;
 
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const verifyEmail = async (code: string): Promise<boolean> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-        await new Promise(res => setTimeout(res, 500));
-        const users = getStoredUsers();
-        const userToVerify = users.find(u => u.verificationToken === code && !u.isVerified);
-
-        if (userToVerify) {
-            userToVerify.isVerified = true;
-            userToVerify.verificationToken = undefined;
-            saveStoredUsers(users);
-            return true;
-        } else {
-            setError("Invalid or expired verification code.");
-            return false;
-        }
-    } finally {
-        setIsLoading(false);
     }
   };
 
@@ -228,7 +197,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     register,
     logout,
-    verifyEmail,
     setUser: updateUser,
   };
 

@@ -6,7 +6,6 @@ import { useAuth } from '../hooks/useAuth';
 import AuthLayout from './AuthLayout';
 
 interface SignUpProps {
-  onSignUpSuccess: (email: string) => void;
   onSwitchToLogin: () => void;
 }
 
@@ -30,7 +29,7 @@ const PasswordStrengthIndicator: React.FC<{ passwordValidity: any }> = ({ passwo
     );
 };
 
-const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onSwitchToLogin }) => {
+const SignUp: React.FC<SignUpProps> = ({ onSwitchToLogin }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,10 +56,9 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onSwitchToLogin }) => 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isPasswordStrong) return;
-    const success = await register(username, email, password);
-    if (success) {
-      onSignUpSuccess(email);
-    }
+    // The register function will now automatically log the user in and update the auth state.
+    // The App component will then re-render to show the main application.
+    await register(username, email, password);
   };
 
   return (

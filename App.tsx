@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
-import VerifyEmail from './components/VerifyEmail';
 import Dashboard from './components/Dashboard';
 import Wallet from './components/Wallet';
 import History from './components/History';
@@ -98,8 +97,7 @@ const MainApp: React.FC = () => {
 
 function App() {
     const { isAuthenticated, isLoading } = useAuth();
-    const [authScreen, setAuthScreen] = useState<'login' | 'signup' | 'verify'>('login');
-    const [userToVerify, setUserToVerify] = useState<{email: string} | null>(null);
+    const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login');
 
     if (isLoading) {
         // You can return a global loading spinner here
@@ -109,13 +107,7 @@ function App() {
     if (!isAuthenticated) {
         switch (authScreen) {
             case 'signup':
-                return <SignUp onSwitchToLogin={() => setAuthScreen('login')} onSignUpSuccess={(email) => { setUserToVerify({email}); setAuthScreen('verify'); }} />;
-            case 'verify':
-                 if (!userToVerify) {
-                    setAuthScreen('login');
-                    return null;
-                 }
-                return <VerifyEmail email={userToVerify.email} onVerificationSuccess={() => setAuthScreen('login')} />;
+                return <SignUp onSwitchToLogin={() => setAuthScreen('login')} />;
             case 'login':
             default:
                 return <Login onSwitchToSignUp={() => setAuthScreen('signup')} />;
