@@ -240,12 +240,44 @@ const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<R
 
 const Wallet: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>>; rates: Rates; }> = ({ balances, setBalances, rates }) => {
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
+  // Fix: Replaced `JSX.Element` with `React.ReactNode` to resolve namespace error.
+  const coinData: { key: keyof Balances; name: string; icon: React.ReactNode }[] = [
+    { key: 'btc', name: 'Bitcoin', icon: <BtcIcon /> },
+    { key: 'eth', name: 'Ethereum', icon: <EthIcon /> },
+    { key: 'usdt', name: 'Tether', icon: <UsdtIcon /> },
+  ];
 
   return (
-    <div className="p-5">
-      <h1 className="text-4xl font-extrabold mb-8 text-text-dark">Wallet</h1>
+    <div className="p-5 space-y-8">
+      <h1 className="text-4xl font-extrabold text-text-dark">Wallet</h1>
       
-      <div className="flex bg-secondary rounded-2xl p-1 mb-6">
+      <Card>
+        <h2 className="text-xl font-bold text-text-dark mb-4">Your Balances</h2>
+        <div className="space-y-4">
+          {coinData.map(({ key, name, icon }) => {
+            const balance = balances[key];
+            const rate = rates[key];
+            const usdValue = balance * rate;
+            return (
+              <div key={key} className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10">{icon}</div>
+                  <div>
+                    <p className="font-bold text-lg text-text-dark">{name}</p>
+                    <p className="text-sm text-text-muted-dark">{key.toUpperCase()}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-lg text-text-dark">{balance.toFixed(6)}</p>
+                  <p className="text-sm text-text-muted-dark">${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+      
+      <div className="flex bg-secondary rounded-2xl p-1">
         <button 
           onClick={() => setActiveTab('deposit')}
           className={`w-1/2 py-2.5 rounded-xl font-bold text-base transition-all duration-300 ${activeTab === 'deposit' ? 'bg-card-dark text-primary shadow-md' : 'text-text-muted-dark'}`}
