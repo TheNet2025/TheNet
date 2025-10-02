@@ -1,5 +1,5 @@
 
-import { Transaction, TransactionStatus, TransactionType } from './types';
+import { Transaction, TransactionStatus, TransactionType, Plan } from './types';
 
 export const MOCK_TRANSACTIONS: Transaction[] = [
   {
@@ -46,5 +46,36 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     currency: 'USDT',
     date: '2024-07-19 22:10',
     address: '0x...a1b2',
+  },
+];
+
+
+export const MOCK_PLANS: Plan[] = [
+  {
+    id: 'plan_starter',
+    name: 'Starter Miner',
+    hashrate: 100, // GH/s
+    duration: '12 Months Contract',
+    price: 99,
+    features: ['100 GH/s BTC Mining', 'SHA-256 Algorithm', 'Daily Payouts', 'Full-time Support'],
+    bestValue: false,
+  },
+  {
+    id: 'plan_pro',
+    name: 'Pro Rig',
+    hashrate: 500, // GH/s
+    duration: '24 Months Contract',
+    price: 449,
+    features: ['500 GH/s BTC Mining', 'SHA-256 Algorithm', 'Daily Payouts', 'Priority Support'],
+    bestValue: true,
+  },
+  {
+    id: 'plan_enterprise',
+    name: 'Enterprise Farm',
+    hashrate: 2000, // TH/s -> 2000 GH/s
+    duration: '36 Months Contract',
+    price: 1599,
+    features: ['2 TH/s BTC Mining', 'SHA-256 Algorithm', 'Instant Payouts', 'Dedicated Manager'],
+    bestValue: false,
   },
 ];

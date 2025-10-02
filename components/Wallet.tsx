@@ -11,6 +11,11 @@ const COINS = {
     ETH: { name: 'Ethereum (ERC20)', address: '0x46aaf15a144f49b2b8d67c29135d30d852841ec0', icon: <EthIcon />, minWithdraw: 0.01 },
 };
 type Coin = keyof typeof COINS;
+interface Rates {
+    btc: number;
+    eth: number;
+    usdt: number;
+}
 
 const DepositView: React.FC<{}> = () => {
     const [selectedCoin, setSelectedCoin] = useState<Coin>('USDT');
@@ -123,18 +128,22 @@ const DepositView: React.FC<{}> = () => {
     );
 };
 
-const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>> }> = ({ balances, setBalances }) => {
+const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>>; rates: Rates; }> = ({ balances, setBalances, rates }) => {
     const [selectedCoin, setSelectedCoin] = useState<Coin>('BTC');
     const [address, setAddress] = useState('');
     const [amount, setAmount] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [submitted, setSubmitted] = useState(false);
 
+    const balance = balances[selectedCoin.toLowerCase() as keyof Balances];
+    const rate = rates[selectedCoin.toLowerCase() as keyof Rates] || 0;
+    const usdValue = balance * rate;
+
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         const amountNum = parseFloat(amount);
-        const balance = balances[selectedCoin.toLowerCase() as keyof Balances];
         const minWithdraw = COINS[selectedCoin].minWithdraw;
 
         if (amountNum > balance) {
@@ -204,7 +213,8 @@ const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<R
                 ))}
             </div>
              <div className="text-right text-sm text-text-muted-dark -mt-4">
-                Available: <span className="font-bold text-text-dark">{balances[selectedCoin.toLowerCase() as keyof Balances].toFixed(6)} {selectedCoin}</span>
+                Available: <span className="font-bold text-text-dark">{balance.toFixed(6)} {selectedCoin}</span>
+                <span className="block text-xs">~ ${usdValue.toFixed(2)} USD</span>
             </div>
 
             <Input label={`Recipient ${selectedCoin} Address`} placeholder={`Enter ${selectedCoin} address`} value={address} onChange={e => setAddress(e.target.value)} required />
@@ -228,7 +238,7 @@ const WithdrawView: React.FC<{ balances: Balances; setBalances: React.Dispatch<R
 };
 
 
-const Wallet: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>> }> = ({ balances, setBalances }) => {
+const Wallet: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.SetStateAction<Balances>>; rates: Rates; }> = ({ balances, setBalances, rates }) => {
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
 
   return (
@@ -250,7 +260,7 @@ const Wallet: React.FC<{ balances: Balances; setBalances: React.Dispatch<React.S
         </button>
       </div>
 
-      {activeTab === 'deposit' ? <DepositView /> : <WithdrawView balances={balances} setBalances={setBalances} />}
+      {activeTab === 'deposit' ? <DepositView /> : <WithdrawView balances={balances} setBalances={setBalances} rates={rates} />}
     </div>
   );
 };

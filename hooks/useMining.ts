@@ -1,12 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Balances } from '../types';
 
-const MOCK_HASHRATE = 250.7; // MH/s
-const MOCK_BTC_EARNING_RATE = 0.000000005; // BTC per MH/s per second
+const MOCK_BTC_EARNING_RATE = 0.00000000005; // BTC per GH/s per second
 
-export const useMining = (setBalances: React.Dispatch<React.SetStateAction<Balances>>) => {
-  const [isMining, setIsMining] = useState(true);
-  const [hashrate, setHashrate] = useState(MOCK_HASHRATE);
+interface Rates {
+    btc: number;
+    eth: number;
+    usdt: number;
+}
+
+export const useMining = (setBalances: React.Dispatch<React.SetStateAction<Balances>>, rates: Rates) => {
+  const [hashrate, setHashrate] = useState(() => parseFloat(localStorage.getItem('minerx_hashrate') || '0'));
+  const [isMining, setIsMining] = useState(hashrate > 0);
   const [estimatedEarnings, setEstimatedEarnings] = useState(0);
 
   const intervalRef = useRef<number | null>(null);
@@ -29,7 +34,7 @@ export const useMining = (setBalances: React.Dispatch<React.SetStateAction<Balan
   };
 
   useEffect(() => {
-    if (isMining) {
+    if (isMining && hashrate > 0) {
       startMining();
     } else {
       stopMining();
@@ -39,31 +44,45 @@ export const useMining = (setBalances: React.Dispatch<React.SetStateAction<Balan
   }, [isMining, hashrate]);
 
   useEffect(() => {
-    // This is a placeholder for USD value, you might want to connect this to real rates
-    const dailyEarningsInBtc = hashrate * MOCK_BTC_EARNING_RATE * 60 * 60 * 24;
-    const btcPrice = 60000; // Mock price
+    const dailyEarningsInBtc = (hashrate * MOCK_BTC_EARNING_RATE) * 60 * 60 * 24;
+    const btcPrice = rates.btc;
     setEstimatedEarnings(dailyEarningsInBtc * btcPrice);
-  }, [hashrate]);
+  }, [hashrate, rates.btc]);
 
   useEffect(() => {
     const handleMiningControl = (event: Event) => {
       const { action, value } = (event as CustomEvent<{action: 'start' | 'stop' | 'set_hashrate', value?: number}>).detail;
       switch (action) {
         case 'start':
-          setIsMining(true);
+          if (hashrate > 0) setIsMining(true);
           break;
         case 'stop':
           setIsMining(false);
           break;
         case 'set_hashrate':
-          if (typeof value === 'number') setHashrate(value);
+          if (typeof value === 'number') {
+            setHashrate(value);
+            localStorage.setItem('minerx_hashrate', value.toString());
+          }
           break;
+      }
+    };
+    
+    const handleHashpowerUpdate = () => {
+      const newHashrate = parseFloat(localStorage.getItem('minerx_hashrate') || '0');
+      setHashrate(newHashrate);
+      if (newHashrate > 0 && !isMining) {
+          setIsMining(true);
       }
     };
 
     window.addEventListener('admin_mining_control', handleMiningControl);
-    return () => window.removeEventListener('admin_mining_control', handleMiningControl);
-  }, []);
+    window.addEventListener('hashpower_updated', handleHashpowerUpdate);
+    return () => {
+        window.removeEventListener('admin_mining_control', handleMiningControl);
+        window.removeEventListener('hashpower_updated', handleHashpowerUpdate);
+    };
+  }, [hashrate, isMining]);
 
   return { isMining, setIsMining, hashrate, estimatedEarnings };
 };

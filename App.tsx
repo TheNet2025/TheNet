@@ -7,6 +7,7 @@ import History from './components/History';
 import Settings from './components/Settings';
 import Profile from './components/Profile';
 import Admin from './components/Admin';
+import Store from './components/Store';
 import { BottomNav } from './components/BottomNav';
 import { StatusBar } from './components/common/StatusBar';
 import { Page, Theme, User, Transaction, Balances } from './types';
@@ -84,9 +85,11 @@ function App() {
   const renderPage = () => {
     switch (activePage) {
       case Page.Dashboard:
-        return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} />;
+        return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} setActivePage={setActivePage} />;
       case Page.Wallet:
-        return <Wallet balances={balances} setBalances={setBalances} />;
+        return <Wallet balances={balances} setBalances={setBalances} rates={rates} />;
+      case Page.Store:
+        return <Store setActivePage={setActivePage} />;
       case Page.History:
         return <History transactions={transactions} />;
       case Page.Settings:
@@ -94,9 +97,9 @@ function App() {
       case Page.Profile:
         return <Profile user={user} setUser={setUser} onBack={() => setActivePage(Page.Settings)} />;
       case Page.Admin:
-        return isAdmin ? <Admin balances={balances} setBalances={setBalances} /> : <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} />;
+        return isAdmin ? <Admin balances={balances} setBalances={setBalances} /> : <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} setActivePage={setActivePage} />;
       default:
-        return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} />;
+        return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} setActivePage={setActivePage} />;
     }
   };
 

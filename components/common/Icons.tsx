@@ -2,12 +2,53 @@ import React from 'react';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 
+export const AppIcon: React.FC<IconProps> = (props) => (
+  <svg
+    viewBox="0 0 100 100"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+    aria-label="MinerX App Icon"
+    role="img"
+  >
+    <defs>
+      <linearGradient id="icon-bg-gradient" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#1A1F33" />
+        <stop offset="1" stopColor="#0A0E1A" />
+      </linearGradient>
+       <filter id="icon-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feFlood result="flood" floodColor="#00E5FF" floodOpacity="0.5"></feFlood>
+            <feComposite in="flood" result="mask" in2="SourceGraphic" operator="in"></feComposite>
+            <feMorphology in="mask" result="dilated" operator="dilate" radius="1.5"></feMorphology>
+            <feGaussianBlur in="dilated" result="blurred" stdDeviation="3"></feGaussianBlur>
+            <feMerge>
+                <feMergeNode in="blurred"></feMergeNode>
+                <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+        </filter>
+    </defs>
+    <rect width="100" height="100" rx="24" fill="url(#icon-bg-gradient)" />
+    <g transform="rotate(45 50 50)" filter="url(#icon-glow)">
+        {/* Handle */}
+        <rect x="44" y="20" width="12" height="60" rx="4" fill="#00B8CC" />
+        {/* Head */}
+        <path d="M50 20 L25 20 C22.2386 20 20 22.2386 20 25 L20 30 L80 30 L80 25 C80 22.2386 77.7614 20 75 20 L50 20 Z" fill="#00E5FF" />
+        {/* Tips */}
+        <path d="M20 30 L15 30 L20 35 L20 30 Z" fill="#E0EFFF" />
+        <path d="M80 30 L85 30 L80 35 L80 30 Z" fill="#E0EFFF" />
+        {/* "M" detail */}
+        <path d="M47 45 L50 49 L53 45" stroke="#E0EFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M47 52 L50 56 L53 52" stroke="#E0EFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </g>
+  </svg>
+);
+
 export const HomeIcon: React.FC<IconProps> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h7.5" /></svg>
 );
 
 export const WalletIcon: React.FC<IconProps> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25-2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
 );
 
 export const HistoryIcon: React.FC<IconProps> = (props) => (
@@ -22,8 +63,12 @@ export const AdjustmentsIcon: React.FC<IconProps> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
 );
 
+export const BoltIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+);
+
 export const MailIcon: React.FC<IconProps> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25-2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
 );
 
 export const LockIcon: React.FC<IconProps> = (props) => (

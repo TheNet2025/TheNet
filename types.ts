@@ -33,10 +33,21 @@ export enum Theme {
 export enum Page {
     Dashboard = 'dashboard',
     Wallet = 'wallet',
+    Store = 'store',
     History = 'history',
     Settings = 'settings',
     Profile = 'profile',
     Admin = 'admin',
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  hashrate: number; // in GH/s
+  duration: string;
+  price: number;
+  features: string[];
+  bestValue: boolean;
 }
 
 export interface Balances {

@@ -15,7 +15,7 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
     const [user, setUser] = useState<User>(() => JSON.parse(localStorage.getItem('minerx_user') || '{}'));
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('minerx_theme') as Theme) || Theme.Dark);
     const [localBalances, setLocalBalances] = useState<Balances>(initialBalances);
-    const [hashrate, setHashrate] = useState<number>(250.7);
+    const [hashrate, setHashrate] = useState<number>(() => parseFloat(localStorage.getItem('minerx_hashrate') || '0'));
     const [transactions, setTransactions] = useState<Transaction[]>(() => JSON.parse(localStorage.getItem('minerx_transactions') || '[]'));
     
     const pendingTransactions = transactions.filter(tx => tx.status === TransactionStatus.Pending);
@@ -84,6 +84,9 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
     };
     
     const handleMiningControl = (action: 'start' | 'stop' | 'set_hashrate', value?: number) => {
+        if (action === 'set_hashrate' && typeof value === 'number') {
+            localStorage.setItem('minerx_hashrate', value.toString());
+        }
         dispatchUpdate('admin_mining_control', { action, value });
     };
 
@@ -154,7 +157,7 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
                      <Button onClick={() => handleMiningControl('stop')} variant="danger">Stop Mining</Button>
                 </div>
                 <div className="flex items-end space-x-2 mt-4">
-                     <Input label="Set Hashrate (MH/s)" type="number" value={hashrate} onChange={e => setHashrate(parseFloat(e.target.value))} />
+                     <Input label="Set Hashrate (GH/s)" type="number" value={hashrate} onChange={e => setHashrate(parseFloat(e.target.value))} />
                      <Button onClick={() => handleMiningControl('set_hashrate', hashrate)} variant="secondary">Set</Button>
                 </div>
             </Card>

@@ -7,6 +7,7 @@ const INITIAL_BALANCES: Balances = {
     usdt: 5120.75,
 };
 
+// Fallback rates in case the API fails
 const INITIAL_RATES = {
     btc: 65000,
     eth: 3500,
@@ -26,15 +27,35 @@ export const useWalletBalance = () => {
     }, [balances]);
     
     useEffect(() => {
-        // Simulate rate fluctuations
-        const interval = setInterval(() => {
-            setRates(prev => ({
-                btc: prev.btc * (1 + (Math.random() - 0.5) * 0.01), // +/- 0.5%
-                eth: prev.eth * (1 + (Math.random() - 0.5) * 0.01),
-                usdt: 1,
-            }));
-        }, 5000);
-        return () => clearInterval(interval);
+        const fetchRates = async () => {
+            try {
+                // Using CoinGecko's free, no-key-required API
+                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd');
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                // Ensure data structure is as expected before setting state
+                if (data.bitcoin?.usd && data.ethereum?.usd && data.tether?.usd) {
+                    setRates({
+                        btc: data.bitcoin.usd,
+                        eth: data.ethereum.usd,
+                        usdt: data.tether.usd,
+                    });
+                } else {
+                     throw new Error('Invalid data structure from API');
+                }
+            } catch (error) {
+                console.error("Could not fetch cryptocurrency rates:", error);
+                // In case of an error, we'll just keep the last known rates.
+            }
+        };
+
+        fetchRates(); // Fetch immediately on component mount
+        const interval = setInterval(fetchRates, 60000); // And then poll every 60 seconds
+
+        return () => clearInterval(interval); // Cleanup on component unmount
     }, []);
 
     useEffect(() => {

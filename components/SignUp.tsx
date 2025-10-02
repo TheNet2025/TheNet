@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Button from './common/Button';
 import Input from './common/Input';
-import { MailIcon, LockIcon, UserIcon } from './common/Icons';
+import { MailIcon, LockIcon, UserIcon, AppIcon } from './common/Icons';
 
 interface SignUpProps {
   onSignUp: () => void;
@@ -25,7 +25,8 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSwitchToLogin }) => {
   return (
      <div className="flex justify-center items-center min-h-screen w-full bg-background-light dark:bg-background-dark dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,229,255,0.15),rgba(255,255,255,0))]">
       <div className="w-[375px] h-[812px] bg-transparent flex flex-col justify-center p-8">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
+          <AppIcon className="w-28 h-28 mx-auto mb-4" />
           <h1 className="text-5xl font-extrabold text-primary mb-3">Create Account</h1>
           <p className="text-text-muted-light dark:text-text-muted-dark text-lg">Join the MinerX community.</p>
         </div>

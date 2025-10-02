@@ -5,12 +5,20 @@ import { useMining } from '../hooks/useMining';
 import { useLiveFeed } from '../hooks/useLiveFeed';
 import LiveFeed from './LiveFeed';
 import { BiometricIcon, ChartBarIcon, CpuChipIcon, PauseIcon, PlayIcon } from './common/Icons';
-import { Balances, User } from '../types';
+import { Balances, Page, User } from '../types';
+
+interface Rates {
+    btc: number;
+    eth: number;
+    usdt: number;
+}
 
 interface DashboardProps {
   user: User;
   totalUsdValue: number;
   setBalances: React.Dispatch<React.SetStateAction<Balances>>;
+  rates: Rates;
+  setActivePage: (page: Page) => void;
 }
 
 const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string, subValue?: string }> = ({ icon, label, value, subValue }) => (
@@ -25,9 +33,24 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string, 
 );
 
 
-const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances }) => {
-    const { isMining, setIsMining, hashrate, estimatedEarnings } = useMining(setBalances);
+const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances, rates, setActivePage }) => {
+    const { isMining, setIsMining, hashrate, estimatedEarnings } = useMining(setBalances, rates);
     const feed = useLiveFeed(isMining);
+
+    if (hashrate === 0) {
+        return (
+            <div className="p-5 space-y-6 pb-24 text-center h-full flex flex-col justify-center">
+                <Card className="!p-8">
+                    <CpuChipIcon className="w-20 h-20 text-primary mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-text-dark">Start Your Mining Journey</h2>
+                    <p className="text-text-muted-dark mt-2 mb-6">You don't have any active mining plans yet. Purchase hashpower from the store to begin earning cryptocurrency.</p>
+                    <Button onClick={() => setActivePage(Page.Store)} variant="primary" className="w-full !py-4">
+                        Go to Store
+                    </Button>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="p-5 space-y-6 pb-24">
@@ -48,7 +71,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, totalUsdValue, setBalances 
             </Card>
 
             <div className="flex space-x-4">
-                <StatCard icon={<CpuChipIcon />} label="Current Hashrate" value={`${hashrate.toFixed(2)} MH/s`} />
+                <StatCard icon={<CpuChipIcon />} label="Current Hashrate" value={`${hashrate.toFixed(2)} GH/s`} />
                 <StatCard icon={<ChartBarIcon />} label="Daily Earnings" value={`$${estimatedEarnings.toFixed(2)}`} subValue="+5%" />
             </div>
 
