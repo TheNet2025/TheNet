@@ -1,9 +1,10 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { User, Transaction, Balances, KycStatus, TransactionStatus, TransactionType } from '../types';
+import { User, Transaction, Balances, KycStatus, TransactionStatus, TransactionType, ActivityLog } from '../types';
 import { MOCK_TRANSACTIONS } from '../constants';
 
 const USERS_KEY = 'minerx_db_users';
 const TRANSACTIONS_KEY = 'minerx_db_transactions';
+const ACTIVITY_LOG_KEY = 'minerx_db_activity_log';
 const ADMIN_EMAIL = 'albertonani79@gmail.com';
 const ADMIN_PASSWORD = 'Planetwin365@';
 
@@ -28,8 +29,12 @@ interface DatabaseContextType {
     // Transactions
     transactions: Transaction[];
     getTransactionsByUserId: (userId: string) => Transaction[];
-    addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status'>) => void;
+    addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status'>, initialStatus?: TransactionStatus) => void;
     updateTransactionStatus: (txId: string, status: TransactionStatus) => void;
+
+    // KYC and Logging
+    updateKycStatus: (userId: string, status: KycStatus) => void;
+    activityLog: ActivityLog[];
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -37,10 +42,12 @@ const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined
 export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [users, setUsers] = useState<User[]>(() => getInitialState<User[]>(USERS_KEY, []));
     const [transactions, setTransactions] = useState<Transaction[]>(() => getInitialState<Transaction[]>(TRANSACTIONS_KEY, []));
+    const [activityLog, setActivityLog] = useState<ActivityLog[]>(() => getInitialState<ActivityLog[]>(ACTIVITY_LOG_KEY, []));
 
     // Persist to localStorage whenever data changes
     useEffect(() => localStorage.setItem(USERS_KEY, JSON.stringify(users)), [users]);
     useEffect(() => localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions)), [transactions]);
+    useEffect(() => localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog)), [activityLog]);
 
     // Initialize admin user on first load
     useEffect(() => {
@@ -77,6 +84,15 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
     }, []);
 
+    const logActivity = (message: string) => {
+        const newLog: ActivityLog = {
+            id: `log_${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            message,
+        };
+        setActivityLog(prev => [newLog, ...prev]);
+    };
+
     const getUserById = useCallback((id: string) => users.find(u => u.id === id), [users]);
     
     const addUser = (newUser: User) => {
@@ -95,12 +111,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUsers(prevUsers => {
             const index = prevUsers.findIndex(u => u.id === updatedUser.id);
             if (index !== -1) {
+                const oldUser = prevUsers[index];
+                if (oldUser.kycStatus !== KycStatus.Pending && updatedUser.kycStatus === KycStatus.Pending) {
+                    logActivity(`User ${updatedUser.email} submitted KYC for review.`);
+                }
                 const newUsers = [...prevUsers];
-                // Keep the original password if it's not being updated
                 newUsers[index] = { ...updatedUser, password: updatedUser.password || prevUsers[index].password }; 
                 return newUsers;
             }
-            // If user doesn't exist, don't add them here. Use addUser.
             return prevUsers;
         });
         window.dispatchEvent(new CustomEvent('db_updated'));
@@ -110,13 +128,21 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return transactions.filter(tx => tx.userId === userId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [transactions]);
     
-    const addTransaction = (txData: Omit<Transaction, 'id' | 'date' | 'status'>) => {
+    const addTransaction = (txData: Omit<Transaction, 'id' | 'date' | 'status'>, initialStatus: TransactionStatus = TransactionStatus.Pending) => {
         const newTx: Transaction = {
             ...txData,
             id: `tx_${Date.now()}`,
             date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-            status: TransactionStatus.Pending,
+            status: initialStatus,
         };
+        
+        if (newTx.type === TransactionType.Purchase && newTx.status === TransactionStatus.Completed) {
+            const user = getUserById(newTx.userId);
+            if(user) {
+                logActivity(`'${newTx.details}' by ${user.email} completed instantly.`);
+            }
+        }
+
         setTransactions(prev => [newTx, ...prev]);
         window.dispatchEvent(new CustomEvent('db_updated'));
     };
@@ -143,12 +169,10 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const newBalances = { ...user.balances };
 
             let balanceChanged = false;
-            // Logic for balance changes on approval/rejection
             if (tx.type === TransactionType.Deposit && status === TransactionStatus.Completed) {
                 newBalances[currencyKey] += tx.amount;
                 balanceChanged = true;
             } else if (tx.type === TransactionType.Withdrawal && status === TransactionStatus.Failed) {
-                // Refund the held amount if withdrawal is rejected
                 newBalances[currencyKey] += tx.amount;
                 balanceChanged = true;
             }
@@ -158,6 +182,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
         }
         window.dispatchEvent(new CustomEvent('db_updated'));
+    };
+
+    const updateKycStatus = (userId: string, status: KycStatus) => {
+        const user = getUserById(userId);
+        if (!user) return;
+        updateUser({ ...user, kycStatus: status });
+        const action = status === KycStatus.Verified ? 'approved' : 'rejected';
+        logActivity(`Admin ${action} KYC for ${user.email}.`);
     };
     
     const value = {
@@ -169,9 +201,10 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         getTransactionsByUserId,
         addTransaction,
         updateTransactionStatus,
+        updateKycStatus,
+        activityLog,
     };
 
-    // FIX: Replaced JSX with React.createElement to support .ts file extension.
     return React.createElement(DatabaseContext.Provider, { value }, children);
 };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Page, Plan, TransactionType, Balances } from '../types';
+import { Page, Plan, TransactionType, TransactionStatus } from '../types';
 import Card from './common/Card';
 import Button from './common/Button';
 import { MOCK_PLANS } from '../constants';
@@ -16,7 +16,7 @@ interface StoreProps {
 const Store: React.FC<StoreProps> = ({ navigateTo }) => {
     const { user } = useAuth();
     const { updateUser, addTransaction, getUserById } = useDatabase();
-    const { balances, setBalances } = useWalletBalance();
+    const { balances } = useWalletBalance();
 
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
     const [modalState, setModalState] = useState<'hidden' | 'confirm' | 'insufficient_funds'>('hidden');
@@ -40,16 +40,11 @@ const Store: React.FC<StoreProps> = ({ navigateTo }) => {
             return;
         };
 
-        // 1. Atomically deduct balance
         const newBalances = { ...currentUser.balances, usdt: currentUser.balances.usdt - selectedPlan.price };
-        
-        // 2. Provision the service (update hashrate)
         const newHashrate = currentUser.hashrate + selectedPlan.hashrate;
         
-        // 3. Update the user object in the database
         updateUser({ ...currentUser, balances: newBalances, hashrate: newHashrate });
         
-        // 4. Create an immutable ledger entry (order record)
         addTransaction({
             userId: currentUser.id,
             type: TransactionType.Purchase,
@@ -57,9 +52,8 @@ const Store: React.FC<StoreProps> = ({ navigateTo }) => {
             currency: 'USDT',
             address: 'MinerX Store',
             details: `Purchase of ${selectedPlan.name}`
-        });
+        }, TransactionStatus.Completed);
 
-        // 5. Close modal and navigate
         setModalState('hidden');
         setSelectedPlan(null);
         navigateTo(Page.Dashboard);

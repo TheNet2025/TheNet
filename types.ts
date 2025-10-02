@@ -107,3 +107,9 @@ export interface WorkerNode {
   status: 'Healthy' | 'Degraded' | 'Unresponsive';
   ip: string;
 }
+
+export interface ActivityLog {
+  id: string;
+  timestamp: string;
+  message: string;
+}

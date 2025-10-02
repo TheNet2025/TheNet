@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Card from './common/Card';
 import Button from './common/Button';
-import { User, Transaction, TransactionType, TransactionStatus, Balances, KycStatus } from '../types';
+import { User, Transaction, TransactionType, TransactionStatus, Balances, KycStatus, ActivityLog } from '../types';
 import { ArrowLeftIcon, BtcIcon, EthIcon, UsdtIcon, DepositIcon, WithdrawIcon, GiftIcon, ShoppingCartIcon, HistoryIcon } from './common/Icons';
 import { useDatabase } from '../hooks/useDatabase';
 
@@ -129,120 +129,83 @@ const UserDetailView: React.FC<{ userId: string; onBack: () => void; }> = ({ use
     );
 };
 
+type AdminTab = 'deposits' | 'withdrawals' | 'users' | 'kyc' | 'activity';
 
 const Admin: React.FC = () => {
-    const { users, transactions, updateTransactionStatus, getUserById } = useDatabase();
-    const [activeTab, setActiveTab] = useState<'deposits' | 'withdrawals' | 'users'>('deposits');
+    const { users, transactions, updateTransactionStatus, getUserById, updateKycStatus, activityLog } = useDatabase();
+    const [activeTab, setActiveTab] = useState<AdminTab>('deposits');
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
     const { pendingDeposits, pendingWithdrawals } = useMemo(() => {
         const deposits: AugmentedTransaction[] = [];
         const withdrawals: AugmentedTransaction[] = [];
-
-        transactions
-            .filter(tx => tx.status === TransactionStatus.Pending)
-            .forEach(tx => {
-                const user = getUserById(tx.userId);
-                if (user) {
-                    const augmentedTx = { ...tx, userEmail: user.email };
-                    if (tx.type === TransactionType.Deposit) {
-                        deposits.push(augmentedTx);
-                    } else if (tx.type === TransactionType.Withdrawal) {
-                        withdrawals.push(augmentedTx);
-                    }
-                }
-            });
-
+        transactions.filter(tx => tx.status === TransactionStatus.Pending).forEach(tx => {
+            const user = getUserById(tx.userId);
+            if (user) {
+                const augmentedTx = { ...tx, userEmail: user.email };
+                if (tx.type === TransactionType.Deposit) deposits.push(augmentedTx);
+                else if (tx.type === TransactionType.Withdrawal) withdrawals.push(augmentedTx);
+            }
+        });
         return { 
             pendingDeposits: deposits.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), 
             pendingWithdrawals: withdrawals.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         };
     }, [transactions, getUserById]);
     
+    const pendingKycUsers = useMemo(() => users.filter(u => u.kycStatus === KycStatus.Pending), [users]);
     const allUsers = useMemo(() => users.filter(u => u.email.toLowerCase() !== 'albertonani79@gmail.com'), [users]);
     
     const handleTransactionAction = (txId: string, action: 'approve' | 'reject') => {
         updateTransactionStatus(txId, action === 'approve' ? TransactionStatus.Completed : TransactionStatus.Failed);
     };
 
+    const handleKycAction = (userId: string, action: 'approve' | 'reject') => {
+        updateKycStatus(userId, action === 'approve' ? KycStatus.Verified : KycStatus.Rejected);
+    };
+
     if (selectedUserId) {
         return <UserDetailView userId={selectedUserId} onBack={() => setSelectedUserId(null)} />;
     }
+
+    const tabs: { id: AdminTab; label: string; count: number }[] = [
+        { id: 'deposits', label: 'Deposits', count: pendingDeposits.length },
+        { id: 'withdrawals', label: 'Withdrawals', count: pendingWithdrawals.length },
+        { id: 'kyc', label: 'KYC', count: pendingKycUsers.length },
+        { id: 'users', label: 'Users', count: 0 },
+        { id: 'activity', label: 'Activity', count: 0 },
+    ];
 
     return (
         <div className="p-5 space-y-6 pb-24">
             <h1 className="text-4xl font-extrabold text-text-dark">Admin Dashboard</h1>
 
-            <div className="flex bg-secondary rounded-2xl p-1">
-                <button
-                    onClick={() => setActiveTab('deposits')}
-                    className={`w-1/3 py-2.5 rounded-xl font-bold text-base transition-all duration-300 relative ${activeTab === 'deposits' ? 'bg-card-dark text-primary shadow-md' : 'text-text-muted-dark'}`}
-                >
-                    Deposits
-                    {pendingDeposits.length > 0 && 
-                        <span className="absolute top-1 right-2 h-5 w-5 bg-danger text-white text-xs font-bold rounded-full flex items-center justify-center">
-                            {pendingDeposits.length}
-                        </span>
-                    }
-                </button>
-                <button
-                    onClick={() => setActiveTab('withdrawals')}
-                    className={`w-1/3 py-2.5 rounded-xl font-bold text-base transition-all duration-300 relative ${activeTab === 'withdrawals' ? 'bg-card-dark text-primary shadow-md' : 'text-text-muted-dark'}`}
-                >
-                    Withdrawals
-                     {pendingWithdrawals.length > 0 && 
-                        <span className="absolute top-1 right-2 h-5 w-5 bg-danger text-white text-xs font-bold rounded-full flex items-center justify-center">
-                            {pendingWithdrawals.length}
-                        </span>
-                    }
-                </button>
-                <button
-                    onClick={() => setActiveTab('users')}
-                    className={`w-1/3 py-2.5 rounded-xl font-bold text-base transition-all duration-300 ${activeTab === 'users' ? 'bg-card-dark text-primary shadow-md' : 'text-text-muted-dark'}`}
-                >
-                    Users
-                </button>
+            <div className="bg-secondary rounded-2xl p-1">
+                <div className="flex overflow-x-auto scrollbar-hide">
+                    {tabs.map(tab => (
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-shrink-0 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 relative ${activeTab === tab.id ? 'bg-card-dark text-primary shadow-md' : 'text-text-muted-dark'}`}>
+                            {tab.label}
+                            {tab.count > 0 && <span className="ml-2 h-5 w-5 bg-danger text-white text-xs font-bold rounded-full flex items-center justify-center">{tab.count}</span>}
+                        </button>
+                    ))}
+                </div>
             </div>
             
             <Card>
                 {activeTab === 'deposits' && (
-                    <>
-                        <h2 className="font-bold text-xl mb-4 text-text-dark">Pending Deposits</h2>
-                        {pendingDeposits.length > 0 ? (
-                            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                                {pendingDeposits.map(tx => <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />)}
-                            </div>
-                        ) : (<p className="text-text-muted-dark text-center py-8">No pending deposits.</p>)}
-                    </>
+                    <><h2 className="font-bold text-xl mb-4 text-text-dark">Pending Deposits</h2>{pendingDeposits.length > 0 ? (<div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">{pendingDeposits.map(tx => <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />)}</div>) : (<p className="text-text-muted-dark text-center py-8">No pending deposits.</p>)}</>
                 )}
-                
                 {activeTab === 'withdrawals' && (
-                     <>
-                        <h2 className="font-bold text-xl mb-4 text-text-dark">Pending Withdrawals</h2>
-                        {pendingWithdrawals.length > 0 ? (
-                            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                                {pendingWithdrawals.map(tx => <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />)}
-                            </div>
-                        ) : (<p className="text-text-muted-dark text-center py-8">No pending withdrawals.</p>)}
-                    </>
+                     <><h2 className="font-bold text-xl mb-4 text-text-dark">Pending Withdrawals</h2>{pendingWithdrawals.length > 0 ? (<div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">{pendingWithdrawals.map(tx => <TransactionApprovalCard key={tx.id} tx={tx} onAction={handleTransactionAction} />)}</div>) : (<p className="text-text-muted-dark text-center py-8">No pending withdrawals.</p>)}</>
                 )}
-
+                {activeTab === 'kyc' && (
+                    <><h2 className="font-bold text-xl mb-4 text-text-dark">Pending KYC Verifications</h2>{pendingKycUsers.length > 0 ? (<div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">{pendingKycUsers.map(user => (<div key={user.id} className="bg-secondary/80 p-3 rounded-lg flex justify-between items-center"><div className="flex items-center space-x-3"><img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" /><div><p className="font-bold text-text-dark">{user.username}</p><p className="text-sm text-text-muted-dark">{user.email}</p></div></div><div className="flex space-x-2"><Button onClick={() => handleKycAction(user.id, 'approve')} className="!px-4 !py-1.5 !text-xs !bg-success !text-black">Approve</Button><Button onClick={() => handleKycAction(user.id, 'reject')} className="!px-4 !py-1.5 !text-xs !bg-danger">Reject</Button></div></div>))}</div>) : (<p className="text-text-muted-dark text-center py-8">No pending KYC requests.</p>)}</>
+                )}
                 {activeTab === 'users' && (
-                    <>
-                        <h2 className="font-bold text-xl mb-4 text-text-dark">User Management ({allUsers.length})</h2>
-                         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                            {allUsers.map(user => (
-                                <div key={user.id} onClick={() => setSelectedUserId(user.id)} className="flex items-center space-x-4 bg-secondary/80 p-3 rounded-lg cursor-pointer hover:bg-white/10 transition-colors">
-                                    <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full object-cover" />
-                                    <div className="flex-1">
-                                        <p className="font-bold text-text-dark">{user.username}</p>
-                                        <p className="text-sm text-text-muted-dark">{user.email}</p>
-                                    </div>
-                                    <KycStatusBadge status={user.kycStatus} />
-                                </div>
-                            ))}
-                         </div>
-                    </>
+                    <><h2 className="font-bold text-xl mb-4 text-text-dark">User Management ({allUsers.length})</h2><div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">{allUsers.map(user => (<div key={user.id} onClick={() => setSelectedUserId(user.id)} className="flex items-center space-x-4 bg-secondary/80 p-3 rounded-lg cursor-pointer hover:bg-white/10 transition-colors"><img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full object-cover" /><div className="flex-1"><p className="font-bold text-text-dark">{user.username}</p><p className="text-sm text-text-muted-dark">{user.email}</p></div><KycStatusBadge status={user.kycStatus} /></div>))}</div></>
+                )}
+                {activeTab === 'activity' && (
+                    <><h2 className="font-bold text-xl mb-4 text-text-dark">System Activity Log</h2>{activityLog.length > 0 ? (<div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2 font-mono text-xs">{activityLog.map(log => (<div key={log.id} className="flex items-start"><span className="text-primary/60 mr-2">{new Date(log.timestamp).toLocaleTimeString()}</span><span className="text-text-muted-dark flex-1">{log.message}</span></div>))}</div>) : (<p className="text-text-muted-dark text-center py-8">No activity recorded yet.</p>)}</>
                 )}
             </Card>
         </div>
