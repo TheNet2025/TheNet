@@ -1,5 +1,5 @@
 import React from 'react';
-import { HomeIcon, WalletIcon, HistoryIcon, SettingsIcon, AdjustmentsIcon, BoltIcon } from './common/Icons';
+import { HomeIcon, WalletIcon, HistoryIcon, SettingsIcon, AdjustmentsIcon, BoltIcon, ChatBubbleLeftRightIcon } from './common/Icons';
 import { Page } from '../types';
 
 interface BottomNavProps {
@@ -21,6 +21,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activePage, setActivePage,
         <div className="absolute bottom-0 left-0 right-0 h-20 bg-card-light/80 dark:bg-secondary/50 backdrop-blur-lg shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_30px_-5px_rgba(0,0,0,0.3)] flex justify-around items-start px-2 rounded-t-[32px] border-t border-white/10">
             <NavItem label="Dashboard" icon={<HomeIcon />} isActive={activePage === Page.Dashboard} onClick={() => setActivePage(Page.Dashboard)} />
             <NavItem label="Wallet" icon={<WalletIcon />} isActive={activePage === Page.Wallet} onClick={() => setActivePage(Page.Wallet)} />
+            <NavItem label="Chat" icon={<ChatBubbleLeftRightIcon />} isActive={activePage === Page.Chat} onClick={() => setActivePage(Page.Chat)} />
             <NavItem label="Store" icon={<BoltIcon />} isActive={activePage === Page.Store} onClick={() => setActivePage(Page.Store)} />
             <NavItem label="History" icon={<HistoryIcon />} isActive={activePage === Page.History} onClick={() => setActivePage(Page.History)} />
             <NavItem label="Settings" icon={<SettingsIcon />} isActive={activePage === Page.Settings} onClick={() => setActivePage(Page.Settings)} />

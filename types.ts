@@ -33,6 +33,7 @@ export enum Theme {
 export enum Page {
     Dashboard = 'dashboard',
     Wallet = 'wallet',
+    Chat = 'chat',
     Store = 'store',
     History = 'history',
     Settings = 'settings',
@@ -54,4 +55,11 @@ export interface Balances {
     btc: number;
     eth: number;
     usdt: number;
+}
+
+export interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'ai';
+  timestamp: string;
 }

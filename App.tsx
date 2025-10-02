@@ -8,6 +8,7 @@ import Settings from './components/Settings';
 import Profile from './components/Profile';
 import Admin from './components/Admin';
 import Store from './components/Store';
+import Chat from './components/Chat';
 import { BottomNav } from './components/BottomNav';
 import { StatusBar } from './components/common/StatusBar';
 import { Page, Theme, User, Transaction, Balances } from './types';
@@ -88,6 +89,8 @@ function App() {
         return <Dashboard user={user} setBalances={setBalances} totalUsdValue={totalUsdValue} rates={rates} setActivePage={setActivePage} />;
       case Page.Wallet:
         return <Wallet balances={balances} setBalances={setBalances} rates={rates} />;
+      case Page.Chat:
+        return <Chat />;
       case Page.Store:
         return <Store setActivePage={setActivePage} />;
       case Page.History:
@@ -112,9 +115,9 @@ function App() {
 
   return (
     <div className="h-screen w-screen bg-background-light dark:bg-background-dark dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,229,255,0.08),rgba(255,255,255,0))] font-sans overflow-hidden flex justify-center items-center">
-        <div className="relative w-[375px] h-[812px] border-4 border-gray-800 rounded-[60px] shadow-2xl shadow-black/50 overflow-hidden bg-background-light dark:bg-background-dark">
+        <div className="relative w-[375px] h-[812px] border-4 border-gray-800 rounded-[60px] shadow-2xl shadow-black/50 overflow-hidden bg-background-light dark:bg-background-dark flex flex-col">
             <StatusBar />
-            <main className="pt-10 h-full overflow-y-auto pb-20 scrollbar-hide">
+            <main className="pt-10 flex-1 overflow-y-auto pb-20 scrollbar-hide">
                 {renderPage()}
             </main>
             <BottomNav activePage={activePage} setActivePage={setActivePage} isAdmin={isAdmin} />
