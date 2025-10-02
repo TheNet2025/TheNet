@@ -5,18 +5,21 @@ const MOCK_LOG_MESSAGES = {
   INFO: [
     'User satoshi logged in successfully.',
     'GET /api/v1/balance responded 200 OK in 45ms.',
-    'New hashpower plan `plan_pro` purchased.',
+    'New hashpower plan `plan_pro` purchased by user_123. Deducted 449 USDT.',
     'Payout cycle initiated. Processing 124 transactions.',
+    'User admin approved pending deposit tx_dep_56789.',
   ],
   WARN: [
     'API latency for /api/v1/history exceeds 500ms.',
     'Database connection pool near capacity.',
     'Unusual login pattern detected for user admin.',
+    'Purchase attempt failed for user_456: Insufficient funds.',
   ],
   ERROR: [
     'Failed to connect to primary mining pool stratum+tcp://pool.example.com:3333',
     'FATAL: Payout transaction failed: Insufficient gas.',
     'Could not verify user signature for withdrawal tx_wd_12345.',
+    'DB_LOCK_TIMEOUT: Could not acquire lock for user_789 balance during purchase.',
   ],
 };
 

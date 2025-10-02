@@ -1,7 +1,7 @@
 import React from 'react';
 import { Transaction, TransactionStatus, TransactionType } from '../../types';
 import Card from './Card';
-import { XMarkIcon, CopyIcon, LinkIcon, CheckCircleIcon, ClockIcon, ShieldExclamationIcon, GiftIcon, DepositIcon, WithdrawIcon } from './Icons';
+import { XMarkIcon, CopyIcon, LinkIcon, CheckCircleIcon, ClockIcon, ShieldExclamationIcon, GiftIcon, DepositIcon, WithdrawIcon, ShoppingCartIcon } from './Icons';
 
 interface TransactionDetailModalProps {
   tx: Transaction;
@@ -18,6 +18,7 @@ const typeConfig = {
     [TransactionType.Deposit]: { icon: <DepositIcon/>, color: 'text-success' },
     [TransactionType.Withdrawal]: { icon: <WithdrawIcon/>, color: 'text-danger' },
     [TransactionType.Payout]: { icon: <GiftIcon/>, color: 'text-primary' },
+    [TransactionType.Purchase]: { icon: <ShoppingCartIcon/>, color: 'text-yellow-500' },
 };
 
 
@@ -36,7 +37,8 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ tx, onC
         navigator.clipboard.writeText(text);
     };
 
-    const sign = tx.type === TransactionType.Withdrawal ? '-' : '+';
+    const sign = tx.type === TransactionType.Withdrawal || tx.type === TransactionType.Purchase ? '-' : '+';
+    const amountDisplay = tx.type === TransactionType.Purchase ? tx.amount.toFixed(2) : tx.amount.toFixed(8);
 
     return (
     <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end z-50 animate-fade-in" onClick={onClose}>
@@ -53,9 +55,9 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ tx, onC
                     <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center bg-card-dark ${currentType.color}`}>
                         {React.cloneElement(currentType.icon, {className: 'w-8 h-8'})}
                     </div>
-                    <h2 className="text-3xl font-bold text-text-dark mt-4">{tx.type}</h2>
+                    <h2 className="text-3xl font-bold text-text-dark mt-4">{tx.details ? tx.details : tx.type}</h2>
                     <p className={`text-4xl font-extrabold mt-2 ${currentType.color}`}>
-                        {sign}{tx.amount.toFixed(8)} <span className="text-2xl">{tx.currency}</span>
+                        {sign}{amountDisplay} <span className="text-2xl">{tx.currency}</span>
                     </p>
                 </div>
                 
@@ -82,6 +84,11 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ tx, onC
                         } />
                      )}
                     {tx.confirmations !== undefined && <DetailRow label="Confirmations" value={`${tx.confirmations}+`} />}
+                     <DetailRow label="Transaction ID" value={
+                         <div className="flex items-center space-x-2 font-mono text-xs">
+                            <span>{tx.id}</span>
+                         </div>
+                    } />
 
                 </Card>
             </div>

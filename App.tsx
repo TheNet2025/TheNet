@@ -71,7 +71,7 @@ const MainApp: React.FC = () => {
             case Page.Chat:
                 return <Chat />;
             case Page.Store:
-                return <Store setActivePage={setActivePage} />;
+                return <Store setActivePage={setActivePage} balances={balances} setBalances={setBalances} />;
             case Page.History:
                 return <History transactions={transactions} onSelectTx={setSelectedTx} />;
             case Page.Settings:

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Transaction, TransactionStatus, TransactionType } from '../types';
 import Card from './common/Card';
-import { DepositIcon, WithdrawIcon, HistoryIcon, GiftIcon } from './common/Icons';
+import { DepositIcon, WithdrawIcon, HistoryIcon, GiftIcon, ShoppingCartIcon } from './common/Icons';
 
 interface HistoryProps {
   transactions: Transaction[];
@@ -39,20 +39,29 @@ const typeConfigs: Record<TransactionType, { icon: React.ReactNode; color: strin
         ),
         color: 'text-primary',
     },
+    [TransactionType.Purchase]: {
+        icon: (
+             <div className="h-12 w-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                <ShoppingCartIcon className="h-6 w-6 text-yellow-500" />
+            </div>
+        ),
+        color: 'text-danger',
+    },
 };
 
 
 const TransactionItem: React.FC<{ tx: Transaction, onSelect: () => void }> = ({ tx, onSelect }) => {
   const config = typeConfigs[tx.type];
-  const sign = tx.type === TransactionType.Withdrawal ? '-' : '+';
+  const sign = tx.type === TransactionType.Withdrawal || tx.type === TransactionType.Purchase ? '-' : '+';
+  const amountDisplay = tx.type === TransactionType.Purchase ? tx.amount.toFixed(2) : tx.amount.toFixed(8);
 
   return (
     <Card className="flex items-center space-x-4 !p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={onSelect}>
       {config.icon}
       <div className="flex-1">
         <div className="flex justify-between items-center">
-          <p className="font-bold text-text-dark text-lg">{tx.type}</p>
-          <p className={`font-bold text-lg ${config.color}`}>{sign}{tx.amount.toFixed(8)} {tx.currency}</p>
+          <p className="font-bold text-text-dark text-lg">{tx.details ? tx.details : tx.type}</p>
+          <p className={`font-bold text-lg ${config.color}`}>{sign}{amountDisplay} {tx.currency}</p>
         </div>
         <div className="flex justify-between items-center text-sm mt-1">
           <p className="text-text-muted-dark">{tx.date}</p>

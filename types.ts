@@ -4,6 +4,7 @@ export enum TransactionType {
   Deposit = 'Deposit',
   Withdrawal = 'Withdrawal',
   Payout = 'Payout',
+  Purchase = 'Purchase',
 }
 
 export enum TransactionStatus {
@@ -23,6 +24,7 @@ export interface Transaction {
   txHash?: string;
   confirmations?: number;
   payoutCycleId?: string;
+  details?: string; // For purchase details
 }
 
 export enum KycStatus {

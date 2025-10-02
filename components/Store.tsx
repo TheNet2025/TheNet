@@ -1,39 +1,79 @@
 import React, { useState } from 'react';
-import { Page, Plan } from '../types';
+import { Page, Plan, Transaction, TransactionType, TransactionStatus, Balances } from '../types';
 import Card from './common/Card';
 import Button from './common/Button';
 import { MOCK_PLANS } from '../constants';
 import { CheckCircleIcon } from './common/Icons';
-import PaymentModal from './common/PaymentModal';
+import PurchaseModal from './common/PurchaseModal';
 import { useAuth } from '../hooks/useAuth';
 
 interface StoreProps {
   setActivePage: (page: Page) => void;
+  balances: Balances;
+  setBalances: React.Dispatch<React.SetStateAction<Balances>>;
 }
 
-const Store: React.FC<StoreProps> = ({ setActivePage }) => {
-    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+const Store: React.FC<StoreProps> = ({ setActivePage, balances, setBalances }) => {
     const { user } = useAuth();
+    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const [modalState, setModalState] = useState<'hidden' | 'confirm' | 'insufficient_funds'>('hidden');
 
-    const handlePurchase = (plan: Plan) => {
+    const handleAttemptPurchase = (plan: Plan) => {
         setSelectedPlan(plan);
+        if (balances.usdt >= plan.price) {
+            setModalState('confirm');
+        } else {
+            setModalState('insufficient_funds');
+        }
     };
+    
+    // Simulates an atomic, idempotent purchase operation
+    const handleConfirmPurchase = () => {
+        if (!selectedPlan || !user || balances.usdt < selectedPlan.price) {
+             // Close modal and reset state if conditions are no longer met
+            setModalState('hidden');
+            setSelectedPlan(null);
+            return;
+        };
 
-    const handlePaymentSuccess = () => {
-        if (!selectedPlan || !user) return;
+        // 1. Atomically deduct balance (simulated)
+        setBalances(prev => ({...prev, usdt: prev.usdt - selectedPlan.price }));
+
+        // 2. Create an immutable ledger entry (order record)
+        const newTx: Transaction = {
+            id: `tx_pur_${Date.now()}`,
+            type: TransactionType.Purchase,
+            status: TransactionStatus.Completed,
+            amount: selectedPlan.price,
+            currency: 'USDT',
+            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+            address: 'MinerX Store',
+            details: `Purchase of ${selectedPlan.name}`
+        };
         
+        const TRANSACTIONS_KEY = `minerx_transactions_${user.id}`;
+        const existingTxs = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
+        localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify([newTx, ...existingTxs]));
+        window.dispatchEvent(new Event('transactions_updated'));
+
+        // 3. Provision the service (update hashrate)
         const HASHRATE_KEY = `minerx_hashrate_${user.id}`;
         const currentHashrate = parseFloat(localStorage.getItem(HASHRATE_KEY) || '0');
         const newHashrate = currentHashrate + selectedPlan.hashrate;
         localStorage.setItem(HASHRATE_KEY, newHashrate.toString());
         window.dispatchEvent(new Event('hashpower_updated'));
 
-        setTimeout(() => {
-            setSelectedPlan(null);
-            setActivePage(Page.Dashboard);
-        }, 1500);
+        // 4. Close modal and navigate
+        setModalState('hidden');
+        setSelectedPlan(null);
+        setActivePage(Page.Dashboard);
     };
 
+    const handleGoToWallet = () => {
+        setModalState('hidden');
+        setSelectedPlan(null);
+        setActivePage(Page.Wallet);
+    };
 
     return (
         <div className="p-5 space-y-6 pb-24">
@@ -63,23 +103,26 @@ const Store: React.FC<StoreProps> = ({ setActivePage }) => {
                             </ul>
 
                             <Button 
-                                onClick={() => handlePurchase(plan)} 
+                                onClick={() => handleAttemptPurchase(plan)} 
                                 className="w-full !py-3.5"
                                 variant={plan.bestValue ? 'primary' : 'secondary'}
-                                disabled={!!selectedPlan}
+                                disabled={modalState !== 'hidden'}
                             >
-                                Purchase Plan
+                                Purchase with Wallet Balance
                             </Button>
                         </div>
                     </Card>
                 ))}
             </div>
 
-            {selectedPlan && (
-                <PaymentModal
+            {modalState !== 'hidden' && selectedPlan && (
+                <PurchaseModal
                     plan={selectedPlan}
-                    onClose={() => setSelectedPlan(null)}
-                    onSuccess={handlePaymentSuccess}
+                    state={modalState}
+                    onClose={() => setModalState('hidden')}
+                    onConfirm={handleConfirmPurchase}
+                    onGoToWallet={handleGoToWallet}
+                    balance={balances.usdt}
                 />
             )}
         </div>
