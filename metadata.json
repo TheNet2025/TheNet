@@ -1,0 +1,5 @@
+{
+  "name": "MinerX",
+  "description": "A simulated Android application for cryptocurrency mining and wallet management, built with React and Tailwind CSS. It features a dashboard, wallet functions, transaction history, and user settings with a clean, modern, mobile-first design.",
+  "requestFramePermissions": []
+}
