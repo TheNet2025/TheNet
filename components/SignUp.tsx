@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Button from './common/Button';
 import Input from './common/Input';
-import { MailIcon, LockIcon, UserIcon, AppIcon, CheckCircleIcon } from './common/Icons';
+import { MailIcon, LockIcon, UserIcon, CheckCircleIcon } from './common/Icons';
 import { useAuth } from '../hooks/useAuth';
+import AuthLayout from './AuthLayout';
 
 interface SignUpProps {
   onSignUpSuccess: (email: string) => void;
@@ -11,17 +12,17 @@ interface SignUpProps {
 
 const PasswordStrengthIndicator: React.FC<{ passwordValidity: any }> = ({ passwordValidity }) => {
     const conditions = [
-        { label: "8+ characters", valid: passwordValidity.minLength },
-        { label: "1 uppercase", valid: passwordValidity.uppercase },
-        { label: "1 number", valid: passwordValidity.number },
-        { label: "1 special char", valid: passwordValidity.specialChar },
+        { label: "8+ Chars", valid: passwordValidity.minLength },
+        { label: "Uppercase", valid: passwordValidity.uppercase },
+        { label: "Number", valid: passwordValidity.number },
+        { label: "Symbol", valid: passwordValidity.specialChar },
     ];
 
     return (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
             {conditions.map(condition => (
-                <div key={condition.label} className={`flex items-center transition-colors ${condition.valid ? 'text-success' : 'text-text-muted-dark'}`}>
-                    <CheckCircleIcon className="w-4 h-4 mr-1.5" />
+                <div key={condition.label} className={`flex items-center transition-colors ${condition.valid ? 'text-success' : 'text-text-muted-dark/50'}`}>
+                    <CheckCircleIcon className={`w-3.5 h-3.5 mr-1.5 ${condition.valid ? 'opacity-100' : 'opacity-50'}`} />
                     <span>{condition.label}</span>
                 </div>
             ))}
@@ -63,13 +64,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onSwitchToLogin }) => 
   };
 
   return (
-     <div className="flex justify-center items-center min-h-screen w-full bg-background-light dark:bg-background-dark dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,229,255,0.15),rgba(255,255,255,0))]">
-      <div className="w-[375px] h-[812px] bg-transparent flex flex-col justify-center p-8">
-        <div className="text-center mb-8">
-          <AppIcon className="w-28 h-28 mx-auto mb-4" />
-          <h1 className="text-5xl font-extrabold text-primary mb-3">Create Account</h1>
-          <p className="text-text-muted-light dark:text-text-muted-dark text-lg">Join the MinerX community.</p>
-        </div>
+    <AuthLayout title="Create Account" subtitle="Join the MinerX community today.">
         <form onSubmit={handleSignUp} className="space-y-4">
           <Input label="Username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required icon={<UserIcon />} placeholder="Satoshi" />
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required icon={<MailIcon />} placeholder="you@example.com" />
@@ -79,20 +74,19 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onSwitchToLogin }) => 
           
            {error && <p className="text-danger text-center text-sm pt-2">{error}</p>}
 
-          <Button type="submit" className="w-full !py-4 !mt-8 !rounded-2xl" disabled={isLoading || !isPasswordStrong}>
+          <Button type="submit" className="w-full !py-4 !mt-6 !rounded-xl" disabled={isLoading || !isPasswordStrong}>
              {isLoading ? 'Creating Account...' : 'Sign Up'}
           </Button>
         </form>
-        <div className="mt-8 text-center">
-          <p className="text-base text-text-muted-light dark:text-text-muted-dark">
+        <div className="mt-6 text-center">
+          <p className="text-sm text-text-muted-dark">
             Already have an account?{' '}
-            <button onClick={onSwitchToLogin} className="font-bold text-primary hover:underline">
+            <button onClick={onSwitchToLogin} className="font-semibold text-primary hover:underline">
               Login
             </button>
           </p>
         </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 };
 

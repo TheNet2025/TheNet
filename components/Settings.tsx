@@ -3,7 +3,7 @@ import Card from './common/Card';
 import Button from './common/Button';
 import Toggle from './common/Toggle';
 import { Theme, User } from '../types';
-import { ChevronRightIcon, BellIcon, MoonIcon, ShieldIcon, LockIcon, BiometricIcon as BiometricSettingsIcon } from './common/Icons';
+import { ChevronRightIcon, BellIcon, MoonIcon, ShieldIcon, LockIcon, BiometricIcon as BiometricSettingsIcon, LogoutIcon } from './common/Icons';
 import TwoFactorAuthModal from './common/TwoFactorAuthModal';
 import { useAuth } from '../hooks/useAuth';
 
@@ -14,18 +14,27 @@ interface SettingsProps {
   onNavigateToProfile: () => void;
 }
 
-const SettingsItem: React.FC<{icon: React.ReactNode, label: string, children?: React.ReactNode, onClick?: () => void}> = ({ icon, label, children, onClick }) => (
+const SettingsItem: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    subtitle?: string;
+    children?: React.ReactNode;
+    onClick?: () => void;
+    isLast?: boolean;
+}> = ({ icon, label, subtitle, children, onClick, isLast = false }) => (
     <div 
-        className={`flex justify-between items-center py-5 ${onClick ? 'cursor-pointer' : ''}`}
+        className={`flex items-center py-4 ${!isLast ? 'border-b border-border-dark' : ''} ${onClick ? 'cursor-pointer group' : ''}`}
         onClick={onClick}
     >
-        <div className="flex items-center space-x-4">
-            <div className="w-8 h-8 flex items-center justify-center text-primary">{icon}</div>
-            <span className="font-medium text-lg text-text-dark">{label}</span>
+        <div className="w-10 h-10 flex items-center justify-center bg-secondary rounded-full mr-4 text-primary shrink-0">{icon}</div>
+        <div className="flex-grow">
+            <span className="font-semibold text-lg text-text-dark">{label}</span>
+            {subtitle && <p className="text-sm text-text-muted-dark">{subtitle}</p>}
         </div>
-        <div>{children}</div>
+        <div className={`transition-transform duration-300 ${onClick ? 'group-hover:translate-x-1' : ''}`}>{children}</div>
     </div>
-)
+);
+
 
 const Settings: React.FC<SettingsProps> = ({ user, theme, setTheme, onNavigateToProfile }) => {
     const { logout } = useAuth();
@@ -65,46 +74,42 @@ const Settings: React.FC<SettingsProps> = ({ user, theme, setTheme, onNavigateTo
                 
                 <Card className="!p-0 overflow-hidden">
                     <div 
-                        className="flex items-center space-x-5 p-6 cursor-pointer hover:bg-white/5 transition-colors"
+                        className="flex items-center space-x-5 p-5 cursor-pointer bg-secondary/30 hover:bg-secondary/50 transition-colors"
                         onClick={onNavigateToProfile}
                     >
-                        <img src={user.avatar} alt="Avatar" className="w-16 h-16 rounded-full object-cover" />
+                        <img src={user.avatar} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-primary/50" />
                         <div className="flex-grow">
                             <h2 className="font-bold text-xl text-text-dark">{user.username}</h2>
-                            <p className="text-sm text-text-muted-dark">{user.email}</p>
+                            <p className="text-sm text-text-muted-dark">View and edit profile</p>
                         </div>
                         <ChevronRightIcon className="text-text-muted-dark" />
                     </div>
                 </Card>
 
-                <Card className="!px-6">
-                    <h3 className="font-bold text-lg pt-2 text-text-dark">Security</h3>
-                    <div className="divide-y divide-border-dark">
-                        <SettingsItem icon={<ShieldIcon />} label="2FA Authentication">
-                            <Toggle label="2FA" enabled={isTwoFactorEnabled} onChange={handle2faToggle} />
-                        </SettingsItem>
-                        <SettingsItem icon={<BiometricSettingsIcon />} label="Biometric Login">
-                            <Toggle label="Biometric" enabled={biometric} onChange={setBiometric} />
-                        </SettingsItem>
-                        <SettingsItem icon={<LockIcon />} label="Change Password" onClick={() => {}} >
-                            <ChevronRightIcon className="text-text-muted-dark" />
-                        </SettingsItem>
-                    </div>
+                <Card className="!p-0 !px-6">
+                    <h3 className="font-bold text-xl pt-5 text-text-dark">Security</h3>
+                    <SettingsItem icon={<ShieldIcon />} label="2FA Authentication" subtitle="Secure your account">
+                        <Toggle label="2FA" enabled={isTwoFactorEnabled} onChange={handle2faToggle} />
+                    </SettingsItem>
+                    <SettingsItem icon={<BiometricSettingsIcon />} label="Biometric Login" subtitle="Enabled for quick access">
+                        <Toggle label="Biometric" enabled={biometric} onChange={setBiometric} />
+                    </SettingsItem>
+                    <SettingsItem icon={<LockIcon />} label="Change Password" subtitle="Update your credentials" onClick={() => {}} isLast={true} >
+                        <ChevronRightIcon className="text-text-muted-dark" />
+                    </SettingsItem>
                 </Card>
                 
-                <Card className="!px-6">
-                    <h3 className="font-bold text-lg pt-2 text-text-dark">Preferences</h3>
-                    <div className="divide-y divide-border-dark">
-                        <SettingsItem icon={<BellIcon />} label="Notifications">
-                            <Toggle label="Notifications" enabled={notifications} onChange={setNotifications} />
-                        </SettingsItem>
-                        <SettingsItem icon={<MoonIcon />} label="Dark Mode">
-                            <Toggle label="Theme" enabled={theme === Theme.Dark} onChange={handleThemeChange} />
-                        </SettingsItem>
-                    </div>
+                <Card className="!p-0 !px-6">
+                    <h3 className="font-bold text-xl pt-5 text-text-dark">Preferences</h3>
+                    <SettingsItem icon={<BellIcon />} label="Notifications" subtitle="Push & email alerts">
+                        <Toggle label="Notifications" enabled={notifications} onChange={setNotifications} />
+                    </SettingsItem>
+                    <SettingsItem icon={<MoonIcon />} label="Dark Mode" subtitle={theme === Theme.Dark ? 'Enabled' : 'Disabled'} isLast={true}>
+                        <Toggle label="Theme" enabled={theme === Theme.Dark} onChange={handleThemeChange} />
+                    </SettingsItem>
                 </Card>
 
-                <Button variant="danger" className="w-full !py-4" onClick={logout}>
+                <Button variant="danger" className="w-full !py-4" onClick={logout} icon={<LogoutIcon />}>
                     Logout
                 </Button>
             </div>

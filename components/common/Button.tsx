@@ -1,7 +1,8 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
+  // FIX: Make children optional to allow for icon-only buttons.
+  children?: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
   className?: string;
   icon?: React.ReactNode;
@@ -26,7 +27,8 @@ const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', classNam
 
   return (
     <button className={`${baseClasses} dark:${variantClasses[variant]} ${lightVariantClasses[variant]} ${className}`} {...props}>
-      {icon && <span className="mr-2 h-5 w-5">{icon}</span>}
+      {/* FIX: Conditionally apply margin to the icon only when children are present, improving layout for icon-only buttons. */}
+      {icon && <span className={`h-5 w-5 ${children ? 'mr-2' : ''}`}>{icon}</span>}
       {children}
     </button>
   );
