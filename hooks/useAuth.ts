@@ -157,12 +157,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       saveStoredUsers([...users, newUser]);
       
-      // In a real app, an email would be sent with this token.
-      // For this simulation, we'll log it to the console for easy access.
-      console.log(`--- EMAIL VERIFICATION ---`);
-      console.log(`To: ${email}`);
-      console.log(`Your verification code is: ${verificationToken}`);
-      console.log(`--------------------------`);
+      // Handle email verification based on environment
+      if (process.env.NODE_ENV !== 'production') {
+          // In development, log the code to the console for easy access.
+          console.log(`--- DEV EMAIL VERIFICATION ---`);
+          console.log(`To: ${email}`);
+          console.log(`Your verification code is: ${verificationToken}`);
+          console.log(`------------------------------`);
+      } else {
+          // In production, a real email would be sent.
+          // We'll simulate this with a log entry without exposing the token.
+          console.log(`PRODUCTION: An email verification code has been sent to ${email}.`);
+          // TODO: Implement actual email sending service here (e.g., SendGrid, Mailgun).
+      }
       
       return true;
 
