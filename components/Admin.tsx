@@ -38,12 +38,14 @@ const MOCK_INFRA_STATUS = [
 
 
 interface AdminProps {
+    user: User;
+    setUser: (user: User) => void;
     balances: Balances;
     setBalances: React.Dispatch<React.SetStateAction<Balances>>;
 }
 
-const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: setGlobalBalances }) => {
-    const [user, setUser] = useState<User>(() => JSON.parse(localStorage.getItem('minerx_user') || '{}'));
+const Admin: React.FC<AdminProps> = ({ user: initialUser, setUser: setGlobalUser, balances: initialBalances, setBalances: setGlobalBalances }) => {
+    const [user, setUser] = useState<User>(initialUser);
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('minerx_theme') as Theme) || Theme.Dark);
     const [localBalances, setLocalBalances] = useState<Balances>(initialBalances);
     const [hashrate, setHashrate] = useState<number>(() => parseFloat(localStorage.getItem('minerx_hashrate') || '0'));
@@ -54,6 +56,10 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
     useEffect(() => {
         setLocalBalances(initialBalances);
     }, [initialBalances]);
+
+     useEffect(() => {
+        setUser(initialUser);
+    }, [initialUser]);
 
     useEffect(() => {
         const handleTxsUpdate = () => setTransactions(JSON.parse(localStorage.getItem('minerx_transactions') || '[]'));
@@ -99,8 +105,7 @@ const Admin: React.FC<AdminProps> = ({ balances: initialBalances, setBalances: s
 
 
     const handleUserSave = () => {
-        localStorage.setItem('minerx_user', JSON.stringify(user));
-        dispatchUpdate('admin_user_update', user);
+        setGlobalUser(user);
     };
 
     const handleThemeChange = (isDark: boolean) => {

@@ -2,24 +2,21 @@ import React, { useState } from 'react';
 import Button from './common/Button';
 import Input from './common/Input';
 import { MailIcon, LockIcon, AppIcon } from './common/Icons';
+import { useAuth } from '../hooks/useAuth';
 
 interface LoginProps {
-  onLogin: () => void;
-  onAdminLogin: () => void;
   onSwitchToSignUp: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, onAdminLogin, onSwitchToSignUp }) => {
+const Login: React.FC<LoginProps> = ({ onSwitchToSignUp }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const { login, error, isLoading } = useAuth();
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (email.toLowerCase() === 'admin' && password === '1995') {
-            onAdminLogin();
-        } else {
-            onLogin();
-        }
+        // The admin user is a special case handled in the auth context
+        await login(email, password);
     };
 
   return (
@@ -33,8 +30,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onAdminLogin, onSwitchToSignUp }
         <form onSubmit={handleLogin} className="space-y-6">
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required icon={<MailIcon />} placeholder="you@example.com" />
           <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required icon={<LockIcon />} placeholder="••••••••" />
-          <Button type="submit" className="w-full !py-4 !mt-10 !rounded-2xl">
-            Login
+          
+          {error && <p className="text-danger text-center text-sm -my-2">{error}</p>}
+
+          <Button type="submit" className="w-full !py-4 !mt-10 !rounded-2xl" disabled={isLoading}>
+            {isLoading ? 'Logging In...' : 'Login'}
           </Button>
         </form>
         <div className="mt-10 text-center">

@@ -33,10 +33,14 @@ export enum KycStatus {
 }
 
 export interface User {
+  id: string;
   username: string;
   email: string;
   avatar: string;
   kycStatus: KycStatus;
+  password?: string; // Hashed password
+  isVerified: boolean;
+  verificationToken?: string;
 }
 
 export enum Theme {

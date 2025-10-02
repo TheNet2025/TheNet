@@ -1,25 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from './common/Button';
 import Input from './common/Input';
-import { MailIcon, LockIcon, UserIcon, AppIcon } from './common/Icons';
+import { MailIcon, LockIcon, UserIcon, AppIcon, CheckCircleIcon } from './common/Icons';
+import { useAuth } from '../hooks/useAuth';
 
 interface SignUpProps {
-  onSignUp: () => void;
+  onSignUpSuccess: (email: string) => void;
   onSwitchToLogin: () => void;
 }
 
-const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSwitchToLogin }) => {
+const PasswordStrengthIndicator: React.FC<{ passwordValidity: any }> = ({ passwordValidity }) => {
+    const conditions = [
+        { label: "8+ characters", valid: passwordValidity.minLength },
+        { label: "1 uppercase", valid: passwordValidity.uppercase },
+        { label: "1 number", valid: passwordValidity.number },
+        { label: "1 special char", valid: passwordValidity.specialChar },
+    ];
+
+    return (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            {conditions.map(condition => (
+                <div key={condition.label} className={`flex items-center transition-colors ${condition.valid ? 'text-success' : 'text-text-muted-dark'}`}>
+                    <CheckCircleIcon className="w-4 h-4 mr-1.5" />
+                    <span>{condition.label}</span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const SignUp: React.FC<SignUpProps> = ({ onSignUpSuccess, onSwitchToLogin }) => {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const { register, error, isLoading } = useAuth();
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const [passwordValidity, setPasswordValidity] = useState({
+      minLength: false,
+      uppercase: false,
+      number: false,
+      specialChar: false,
+  });
+
+  useEffect(() => {
+      setPasswordValidity({
+          minLength: password.length >= 8,
+          uppercase: /[A-Z]/.test(password),
+          number: /[0-9]/.test(password),
+          specialChar: /[^A-Za-z0-9]/.test(password),
+      });
+  }, [password]);
+
+  const isPasswordStrong = Object.values(passwordValidity).every(Boolean);
+
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      alert("Passwords don't match!");
-      return;
+    if (!isPasswordStrong) return;
+    const success = await register(username, email, password);
+    if (success) {
+      onSignUpSuccess(email);
     }
-    onSignUp();
   };
 
   return (
@@ -30,16 +70,20 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSwitchToLogin }) => {
           <h1 className="text-5xl font-extrabold text-primary mb-3">Create Account</h1>
           <p className="text-text-muted-light dark:text-text-muted-dark text-lg">Join the MinerX community.</p>
         </div>
-        <form onSubmit={handleSignUp} className="space-y-6">
-          <Input label="Username" type="text" required icon={<UserIcon />} placeholder="Satoshi" />
+        <form onSubmit={handleSignUp} className="space-y-4">
+          <Input label="Username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required icon={<UserIcon />} placeholder="Satoshi" />
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required icon={<MailIcon />} placeholder="you@example.com" />
           <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required icon={<LockIcon />} placeholder="••••••••" />
-          <Input label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required icon={<LockIcon />} placeholder="••••••••" />
-          <Button type="submit" className="w-full !py-4 !mt-10 !rounded-2xl">
-            Sign Up
+          
+          <PasswordStrengthIndicator passwordValidity={passwordValidity} />
+          
+           {error && <p className="text-danger text-center text-sm pt-2">{error}</p>}
+
+          <Button type="submit" className="w-full !py-4 !mt-8 !rounded-2xl" disabled={isLoading || !isPasswordStrong}>
+             {isLoading ? 'Creating Account...' : 'Sign Up'}
           </Button>
         </form>
-        <div className="mt-10 text-center">
+        <div className="mt-8 text-center">
           <p className="text-base text-text-muted-light dark:text-text-muted-dark">
             Already have an account?{' '}
             <button onClick={onSwitchToLogin} className="font-bold text-primary hover:underline">

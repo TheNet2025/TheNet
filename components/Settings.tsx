@@ -5,10 +5,10 @@ import Toggle from './common/Toggle';
 import { Theme, User } from '../types';
 import { ChevronRightIcon, BellIcon, MoonIcon, ShieldIcon, LockIcon, BiometricIcon as BiometricSettingsIcon } from './common/Icons';
 import TwoFactorAuthModal from './common/TwoFactorAuthModal';
+import { useAuth } from '../hooks/useAuth';
 
 interface SettingsProps {
   user: User;
-  onLogout: () => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   onNavigateToProfile: () => void;
@@ -27,7 +27,8 @@ const SettingsItem: React.FC<{icon: React.ReactNode, label: string, children?: R
     </div>
 )
 
-const Settings: React.FC<SettingsProps> = ({ user, onLogout, theme, setTheme, onNavigateToProfile }) => {
+const Settings: React.FC<SettingsProps> = ({ user, theme, setTheme, onNavigateToProfile }) => {
+    const { logout } = useAuth();
     const [notifications, setNotifications] = useState(true);
     const [isTwoFactorEnabled, setIsTwoFactorEnabled] = useState(() => {
         return localStorage.getItem('minerx_2fa_enabled') === 'true';
@@ -103,7 +104,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, theme, setTheme, on
                     </div>
                 </Card>
 
-                <Button variant="danger" className="w-full !py-4" onClick={onLogout}>
+                <Button variant="danger" className="w-full !py-4" onClick={logout}>
                     Logout
                 </Button>
             </div>
